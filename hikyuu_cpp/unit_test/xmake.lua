@@ -14,7 +14,7 @@ target("unit-test")
         set_default(false)
     end
 
-    add_packages("fmt", "spdlog", "doctest")
+    add_packages("fmt", "spdlog", "doctest", "mysql")
 
     add_includedirs("..")
 
@@ -29,11 +29,10 @@ target("unit-test")
         add_cxflags("-Wno-sign-compare")
     end
     
-    if is_plat("windows") then
+    if is_plat("windows") and is_mode("release") then
         add_defines("HKU_API=__declspec(dllimport)")
     end
 
-    add_defines("PY_VERSION_HEX=0x03000000")
     add_defines("TEST_ALL_IN_ONE")
 
     add_deps("hikyuu")
@@ -54,7 +53,7 @@ target("small-test")
     if get_config("test") == "all" then
         set_default(false)
     end
-    add_packages("fmt", "spdlog", "doctest")
+    add_packages("fmt", "spdlog", "doctest", "mysql")
     add_includedirs("..")
 
     --add_defines("BOOST_TEST_DYN_LINK")
@@ -74,7 +73,6 @@ target("small-test")
         add_defines("HKU_API=__declspec(dllimport)")
     end
 
-    add_defines("PY_VERSION_HEX=0x03000000")
     add_defines("TEST_ALL_IN_ONE")
 
     add_deps("hikyuu")

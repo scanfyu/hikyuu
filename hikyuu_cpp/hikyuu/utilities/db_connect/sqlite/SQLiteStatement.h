@@ -28,7 +28,7 @@ public:
      * @param driver 数据库连接
      * @param sql_statement SQL语句
      */
-    SQLiteStatement(const DBConnectPtr& driver, const string& sql_statement);
+    SQLiteStatement(DBConnectBase* driver, const string& sql_statement);
 
     /** 析构函数 */
     virtual ~SQLiteStatement();
@@ -38,13 +38,13 @@ public:
     virtual bool sub_moveNext() override;
 
     virtual void sub_bindNull(int idx) override;
-    virtual void sub_bindInt(int idx, int64 value) override;
+    virtual void sub_bindInt(int idx, int64_t value) override;
     virtual void sub_bindDouble(int idx, double item) override;
     virtual void sub_bindText(int idx, const string& item) override;
     virtual void sub_bindBlob(int idx, const string& item) override;
 
     virtual int sub_getNumColumns() const override;
-    virtual void sub_getColumnAsInt64(int idx, int64& item) override;
+    virtual void sub_getColumnAsInt64(int idx, int64_t& item) override;
     virtual void sub_getColumnAsDouble(int idx, double& item) override;
     virtual void sub_getColumnAsText(int idx, string& item) override;
     virtual void sub_getColumnAsBlob(int idx, string& item) override;
@@ -57,7 +57,7 @@ private:
                          // sqlite3_reset()
     int m_step_status;
     bool m_at_first_step;
-    shared_ptr<sqlite3> m_db;
+    sqlite3* m_db;
     sqlite3_stmt* m_stmt;
 };
 

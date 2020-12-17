@@ -22,20 +22,26 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import logging
 import sqlite3
 
 from hikyuu.data.tdx_to_h5 import tdx_import_data
+
 
 class ProgressBar:
     def __init__(self, src):
         self.src = src
 
     def __call__(self, cur, total):
-        self.src.queue.put([self.src.task_name, self.src.market, self.src.ktype, (cur+1) * 100 // total, 0])
+        self.src.queue.put(
+            [self.src.task_name, self.src.market, self.src.ktype, (cur + 1) * 100 // total, 0]
+        )
+
 
 class ImportTdxToH5Task:
     def __init__(self, queue, sqlitefile, market, ktype, quotations, src_dir, dest_dir):
         super(self.__class__, self).__init__()
+        self.logger = logging.getLogger(self.__class__.__name__)
         self.task_name = 'IMPORT_KDATA'
         self.queue = queue
         self.sqlitefile = sqlitefile
@@ -65,9 +71,12 @@ class ImportTdxToH5Task:
     def __call__(self):
         count = 0
         try:
-            connect = sqlite3.connect(self.sqlitefile)
+            connect = sqlite3.connect(self.sqlitefile, timeout=1800)
             progress = ProgressBar(self)
-            count = tdx_import_data(connect, self.market, self.ktype, self.quotations, self.src_dir, self.dest_dir, progress)
+            count = tdx_import_data(
+                connect, self.market, self.ktype, self.quotations, self.src_dir, self.dest_dir,
+                progress
+            )
         except Exception as e:
-            print(e)
+            self.logger.error(e)
         self.queue.put([self.task_name, self.market, self.ktype, None, count])

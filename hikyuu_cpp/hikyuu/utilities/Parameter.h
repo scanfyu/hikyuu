@@ -143,12 +143,21 @@ public:
     void set(const string& name, const ValueType& value);
 
     /**
-     * 获取指定的参数值
+     * 获取指定的参数值，参数不存在或类型不匹配时，抛出异常
      * @param name 参数名
      * @return 参数值
      */
     template <typename ValueType>
     ValueType get(const string& name) const;
+
+    /**
+     * 尝试获取指定的参数值，参数不存在或类型不匹配时，返回缺省值
+     * @param name 参数名
+     * @param val 缺省值
+     * @return 参数值
+     */
+    template <typename ValueType>
+    ValueType tryGet(const string& name, const ValueType& val) const;
 
 private:
     typedef map<string, boost::any> param_map_t;
@@ -277,31 +286,47 @@ private:
 #endif /* HKU_SUPPORT_SERIALIZATION */
 };
 
-#define PARAMETER_SUPPORT                                       \
-protected:                                                      \
-    Parameter m_params;                                         \
-                                                                \
-public:                                                         \
-    const Parameter& getParameter() const {                     \
-        return m_params;                                        \
-    }                                                           \
-                                                                \
-    void setParameter(const Parameter& param) {                 \
-        m_params = param;                                       \
-    }                                                           \
-                                                                \
-    bool haveParam(const string& name) const noexcept {         \
-        return m_params.have(name);                             \
-    }                                                           \
-                                                                \
-    template <typename ValueType>                               \
-    void setParam(const string& name, const ValueType& value) { \
-        m_params.set<ValueType>(name, value);                   \
-    }                                                           \
-                                                                \
-    template <typename ValueType>                               \
-    ValueType getParam(const string& name) const {              \
-        return m_params.get<ValueType>(name);                   \
+#define PARAMETER_SUPPORT                                                   \
+protected:                                                                  \
+    Parameter m_params;                                                     \
+                                                                            \
+public:                                                                     \
+    const Parameter& getParameter() const {                                 \
+        return m_params;                                                    \
+    }                                                                       \
+                                                                            \
+    void setParameter(const Parameter& param) {                             \
+        m_params = param;                                                   \
+    }                                                                       \
+                                                                            \
+    bool haveParam(const string& name) const noexcept {                     \
+        return m_params.have(name);                                         \
+    }                                                                       \
+                                                                            \
+    template <typename ValueType>                                           \
+    void setParam(const string& name, const ValueType& value) {             \
+        m_params.set<ValueType>(name, value);                               \
+    }                                                                       \
+                                                                            \
+    template <typename ValueType>                                           \
+    ValueType getParam(const string& name) const {                          \
+        return m_params.get<ValueType>(name);                               \
+    }                                                                       \
+                                                                            \
+    template <typename ValueType>                                           \
+    ValueType tryGetParam(const string& name, const ValueType& val) const { \
+        return m_params.tryGet<ValueType>(name, val);                       \
+    }                                                                       \
+                                                                            \
+    template <typename ValueType>                                           \
+    ValueType getParamFromOther(const Parameter& other, const string& name, \
+                                const ValueType& default_value) {           \
+        if (other.have(name)) {                                             \
+            setParam<ValueType>(name, other.get<ValueType>(name));          \
+        } else {                                                            \
+            setParam<ValueType>(name, default_value);                       \
+        }                                                                   \
+        return getParam<ValueType>(name);                                   \
     }
 
 template <typename ValueType>
@@ -312,6 +337,15 @@ ValueType Parameter::get(const string& name) const {
         throw std::out_of_range("out_of_range in Parameter::get : " + name);
     }
     return boost::any_cast<ValueType>(iter->second);
+}
+
+template <typename ValueType>
+ValueType Parameter::tryGet(const string& name, const ValueType& val) const {
+    try {
+        return get<ValueType>(name);
+    } catch (...) {
+        return val;
+    }
 }
 
 template <typename ValueType>

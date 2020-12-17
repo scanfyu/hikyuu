@@ -40,7 +40,21 @@ public:
         m_name = name;
     }
 
+    bool isReady() const {
+        return m_is_ready;
+    }
+
+    bool readyForRun();
     void run(const KQuery& query);
+    void runMoment(const Datetime& datetime);
+
+    void setQuery(const KQuery& query) {
+        m_query = query;
+    }
+
+    KQuery getQuery() const {
+        return m_query;
+    }
 
     TMPtr getTM() {
         return m_tm;
@@ -62,24 +76,75 @@ public:
         m_af = af;
     }
 
+    SystemList getAllSystem() const {
+        SystemList result;
+        for (auto& sys : m_all_sys_set) {
+            result.push_back(sys);
+        }
+        return result;
+    }
+
     void reset();
 
     typedef shared_ptr<Portfolio> PortfolioPtr;
     PortfolioPtr clone();
 
-private:
-    bool readyForRun();
+    /**
+     * 获取资产组合账户当前时刻的资产详情
+     * @param ktype 日期的类型
+     * @return 资产详情
+     */
+    FundsRecord getFunds(KQuery::KType ktype = KQuery::DAY) const;
 
-    void rebuildOnlyTotalTM();
+    /**
+     * 获取指定时刻的资产市值详情
+     * @param datetime 必须大于帐户建立的初始日期，或为Null<Datetime>()
+     * @param ktype 日期的类型
+     * @return 资产详情
+     * @note 当datetime等于Null<Datetime>()时，与getFunds(KType)同
+     */
+    FundsRecord getFunds(const Datetime& datetime, KQuery::KType ktype = KQuery::DAY);
+
+    /**
+     * 获取资产净值曲线，含借入的资产
+     * @param dates 日期列表，根据该日期列表获取其对应的资产净值曲线
+     * @param ktype K线类型，必须与日期列表匹配，默认KQuery::DAY
+     * @return 资产净值列表
+     */
+    PriceList getFundsCurve(const DatetimeList& dates, KQuery::KType ktype = KQuery::DAY);
+
+    /**
+     * 获取从账户建立日期到系统当前日期的资产净值曲线（按自然日）
+     * @return 资产净值列表
+     */
+    PriceList getFundsCurve();
+
+    /**
+     * 获取收益曲线，即扣除历次存入资金后的资产净值曲线
+     * @param dates 日期列表，根据该日期列表获取其对应的收益曲线，应为递增顺序
+     * @param ktype K线类型，必须与日期列表匹配，默认为KQuery::DAY
+     * @return 收益曲线
+     */
+    PriceList getProfitCurve(const DatetimeList& dates, KQuery::KType ktype = KQuery::DAY);
+
+    /**
+     * 获取获取从账户建立日期到系统当前日期的收益曲线
+     * @return 收益曲线
+     */
+    PriceList getProfitCurve();
 
 protected:
     string m_name;
     TMPtr m_tm;
+    TMPtr m_shadow_tm;
     SEPtr m_se;
     AFPtr m_af;
 
-    //以下为临时变量
-    TMPtr m_tm_shadow;  //影子账户，用于内部协调分配资金
+    std::set<SYSPtr> m_running_sys_set;    // 当前仍在运行的子系统集合
+    std::list<SYSPtr> m_running_sys_list;  // 当前仍在运行的子系统列表
+    std::set<SYSPtr> m_all_sys_set;        // 记录所有运行过或运行中的子系统集合
+    KQuery m_query;                        // 关联的查询条件
+    bool m_is_ready;                       // 是否已做好运行准备
 
 //============================================
 // 序列化支持
@@ -89,8 +154,7 @@ private:
     friend class boost::serialization::access;
     template <class Archive>
     void save(Archive& ar, const unsigned int version) const {
-        string name_str(GBToUTF8(m_name));
-        ar& boost::serialization::make_nvp("name", name_str);
+        ar& BOOST_SERIALIZATION_NVP(m_name);
         ar& BOOST_SERIALIZATION_NVP(m_params);
         ar& BOOST_SERIALIZATION_NVP(m_se);
         ar& BOOST_SERIALIZATION_NVP(m_af);
@@ -99,9 +163,7 @@ private:
 
     template <class Archive>
     void load(Archive& ar, const unsigned int version) {
-        string name;
-        ar& boost::serialization::make_nvp("name", name);
-        m_name = UTF8ToGB(name);
+        ar& BOOST_SERIALIZATION_NVP(m_name);
         ar& BOOST_SERIALIZATION_NVP(m_params);
         ar& BOOST_SERIALIZATION_NVP(m_se);
         ar& BOOST_SERIALIZATION_NVP(m_af);

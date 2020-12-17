@@ -36,10 +36,10 @@ target("core")
     add_deps("hikyuu")
     if is_plat("windows") then
         set_filename("core.pyd")
+        add_cxflags("-wd4251")
     else 
         set_filename("core.so")
     end
-    add_cxflags("-wd4251")
     add_files("./**.cpp")
 
     add_rpathdirs("$ORIGIN", "$ORIGIN/lib", "$ORIGIN/../lib")
@@ -64,7 +64,8 @@ target("core")
             target:add("linkdirs", libdir)
             local out, err = os.iorun("python3 --version")
             local ver = (out .. err):trim()
-            local python_lib = format("python%s.%sm", string.sub(ver,8,8), string.sub(ver,10,10))
+            --local python_lib = format("python%s.%sm", string.sub(ver,8,8), string.sub(ver,10,10))
+            local python_lib = format("python%s.%s", string.sub(ver,8,8), string.sub(ver,10,10))
             target:add("links", python_lib)
         end
 
@@ -91,18 +92,46 @@ target("core")
     end)
 
     after_build(function(target)
-        local dst_dir = "$(projectdir)/hikyuu/cpp/"
-        os.cp(target:targetdir() .. '/*.pyd', dst_dir)
-        os.cp(target:targetdir() .. '/*.dll', dst_dir)
-        os.cp(target:targetdir() .. '/*.so', dst_dir)
-        os.cp(target:targetdir() .. '/*.dylib', dst_dir)
+        if is_plat("macosx") then
+            local out, err = os.iorun("python3 --version")
+            local ver = (out .. err):trim()
+            local boost_python_lib = format("libboost_python%s%s.dylib", string.sub(ver,8,8), string.sub(ver,10,10))
+            os.run(format("install_name_tool -change @rpath/libhikyuu.dylib @loader_path/libhikyuu.dylib %s/%s", target:targetdir(), "core.so"))
+            --os.run(format("install_name_tool -change @rpath/libboost_date_time.dylib @loader_path/libboost_date_time.dylib %s/%s", target:targetdir(), "core.so"))
+            --os.run(format("install_name_tool -change @rpath/libboost_filesystem.dylib @loader_path/libboost_filesystem.dylib %s/%s", target:targetdir(), "core.so"))
+            --os.run(format("install_name_tool -change @rpath/libboost_system.dylib @loader_path/libboost_system.dylib %s/%s", target:targetdir(), "core.so"))
+            os.run(format("install_name_tool -change @rpath/libboost_serialization.dylib @loader_path/libboost_serialization.dylib %s/%s", target:targetdir(), "core.so"))
+            os.run(format("install_name_tool -change @rpath/%s @loader_path/%s %s/%s", boost_python_lib, boost_python_lib, target:targetdir(), "core.so"))
+        end
 
+        local dst_dir = "$(projectdir)/hikyuu/cpp/"
+        if is_plat("windows") then
+            os.cp(target:targetdir() .. '/core.pyd', dst_dir)
+            os.cp(target:targetdir() .. '/hikyuu.dll', dst_dir)
+            os.cp(target:targetdir() .. '/sqlite3.dll', dst_dir)
+        elseif is_plat("macosx") then
+            os.cp(target:targetdir() .. '/core.so', dst_dir)
+            os.cp(target:targetdir() .. '/libhikyuu.dylib', dst_dir)
+        else
+            os.cp(target:targetdir() .. '/core.so', dst_dir)
+            os.cp(target:targetdir() .. '/libhikyuu.so', dst_dir)
+        end
+
+        --os.cp("$(env BOOST_LIB)/boost_date_time*.dll", dst_dir)
+        --os.cp("$(env BOOST_LIB)/boost_filesystem*.dll", dst_dir)
         os.cp("$(env BOOST_LIB)/boost_python3*.dll", dst_dir)
         os.cp("$(env BOOST_LIB)/boost_serialization*.dll", dst_dir)
+        --os.cp("$(env BOOST_LIB)/boost_system*.dll", dst_dir)
+        --os.cp("$(env BOOST_LIB)/libboost_date_time*.so.*", dst_dir)
+        --os.cp("$(env BOOST_LIB)/libboost_filesystem*.so.*", dst_dir)
         os.cp("$(env BOOST_LIB)/libboost_python3*.so.*", dst_dir)
         os.cp("$(env BOOST_LIB)/libboost_serialization*.so.*", dst_dir)
+        --os.cp("$(env BOOST_LIB)/libboost_system*.so.*", dst_dir)
+        --os.cp("$(env BOOST_LIB)/libboost_date_time*.dylib", dst_dir)
+        --os.cp("$(env BOOST_LIB)/libboost_filesystem*.dylib", dst_dir)
         os.cp("$(env BOOST_LIB)/libboost_python3*.dylib", dst_dir)
         os.cp("$(env BOOST_LIB)/libboost_serialization*.dylib", dst_dir)
+        --os.cp("$(env BOOST_LIB)/libboost_system*.dylib", dst_dir)
 
         if is_plat("windows") then
             if is_mode("release") then
@@ -112,7 +141,6 @@ target("core")
             end
             os.cp("$(projectdir)/hikyuu_extern_libs/pkg/mysql.pkg/lib/$(mode)/$(plat)/$(arch)/*.dll", dst_dir)
         end
-
     end)
 
 

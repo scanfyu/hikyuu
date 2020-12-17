@@ -11,7 +11,7 @@
 
 #include <fmt/format.h>
 #include "../utilities/Null.h"
-#include "../utilities/exception.h"
+#include "../Log.h"
 #include "../utilities/arithmetic.h"
 #include "Datetime.h"
 
@@ -99,7 +99,6 @@ std::string Datetime::str() const {
         return "+infinity";
     }
 
-    std::string result;
     double microseconds = millisecond() * 1000 + microsecond();
 
     // 和 python datetime 打印方式保持一致
@@ -111,86 +110,56 @@ std::string Datetime::str() const {
 }
 
 std::string Datetime::repr() const {
-    if (isNull()) {
-        return "Datetime()";
-    }
-
+    HKU_IF_RETURN(isNull(), "Datetime()");
     return fmt::format("Datetime({},{},{},{},{},{},{},{})", year(), month(), day(), hour(),
                        minute(), second(), millisecond(), microsecond());
 }
 
 unsigned long long Datetime::number() const {
-    if (m_data.date() == bd::date(bd::pos_infin)) {
-        return Null<unsigned long long>();
-    }
-
+    HKU_IF_RETURN(m_data.date() == bd::date(bd::pos_infin), Null<unsigned long long>());
     return (unsigned long long)year() * 100000000 + (unsigned long long)month() * 1000000 +
            (unsigned long long)day() * 10000 + (unsigned long long)hour() * 100 +
            (unsigned long long)minute();
 }
 
 long Datetime::year() const {
-    if (isNull()) {
-        HKU_THROW_EXCEPTION(std::logic_error, "This is Null Datetime!");
-    } else {
-        return m_data.date().year();
-    }
+    HKU_CHECK_THROW(!isNull(), std::logic_error, "This is Null Datetime!");
+    return m_data.date().year();
 }
 
 long Datetime::month() const {
-    if (isNull()) {
-        HKU_THROW_EXCEPTION(std::logic_error, "This is Null Datetime!");
-    } else {
-        return m_data.date().month();
-    }
+    HKU_CHECK_THROW(!isNull(), std::logic_error, "This is Null Datetime!");
+    return m_data.date().month();
 }
 
 long Datetime::day() const {
-    if (isNull()) {
-        HKU_THROW_EXCEPTION(std::logic_error, "This is Null Datetime!");
-    } else {
-        return m_data.date().day();
-    }
+    HKU_CHECK_THROW(!isNull(), std::logic_error, "This is Null Datetime!");
+    return m_data.date().day();
 }
 
 long Datetime::hour() const {
-    if (isNull()) {
-        HKU_THROW_EXCEPTION(std::logic_error, "This is Null Datetime!");
-    } else {
-        return long(m_data.time_of_day().hours());
-    }
+    HKU_CHECK_THROW(!isNull(), std::logic_error, "This is Null Datetime!");
+    return long(m_data.time_of_day().hours());
 }
 
 long Datetime::minute() const {
-    if (isNull()) {
-        HKU_THROW_EXCEPTION(std::logic_error, "This is Null Datetime!");
-    } else {
-        return long(m_data.time_of_day().minutes());
-    }
+    HKU_CHECK_THROW(!isNull(), std::logic_error, "This is Null Datetime!");
+    return long(m_data.time_of_day().minutes());
 }
 
 long Datetime::second() const {
-    if (isNull()) {
-        HKU_THROW_EXCEPTION(std::logic_error, "This is Null Datetime!");
-    } else {
-        return long(m_data.time_of_day().seconds());
-    }
+    HKU_CHECK_THROW(!isNull(), std::logic_error, "This is Null Datetime!");
+    return long(m_data.time_of_day().seconds());
 }
 
 long Datetime::millisecond() const {
-    if (isNull()) {
-        HKU_THROW_EXCEPTION(std::logic_error, "This is Null Datetime!");
-    } else {
-        return long(m_data.time_of_day().fractional_seconds()) / 1000;
-    }
+    HKU_CHECK_THROW(!isNull(), std::logic_error, "This is Null Datetime!");
+    return long(m_data.time_of_day().fractional_seconds()) / 1000;
 }
 
 long Datetime::microsecond() const {
-    if (isNull()) {
-        HKU_THROW_EXCEPTION(std::logic_error, "This is Null Datetime!");
-    } else {
-        return long(m_data.time_of_day().fractional_seconds()) % 1000;
-    }
+    HKU_CHECK_THROW(!isNull(), std::logic_error, "This is Null Datetime!");
+    return long(m_data.time_of_day().fractional_seconds()) % 1000;
 }
 
 Datetime Datetime::min() {
@@ -225,8 +194,7 @@ DatetimeList HKU_API getDateRange(const Datetime& start, const Datetime& end) {
 }
 
 Datetime Datetime::dateOfWeek(int day) const {
-    if (*this == Null<Datetime>())
-        return *this;
+    HKU_IF_RETURN(*this == Null<Datetime>(), *this);
 
     int dd = day;
     if (dd < 0) {
@@ -261,10 +229,8 @@ Datetime Datetime::endOfYear() const {
 }
 
 Datetime Datetime::startOfWeek() const {
-    if (*this == Null<Datetime>())
-        return *this;
-
     Datetime result;
+    HKU_IF_RETURN(*this == Null<Datetime>(), result);
     int today = dayOfWeek();
     if (today == 0) {
         result = Datetime(date() + bd::date_duration(-6));
@@ -280,10 +246,8 @@ Datetime Datetime::startOfWeek() const {
 }
 
 Datetime Datetime::endOfWeek() const {
-    if (*this == Null<Datetime>())
-        return *this;
-
     Datetime result;
+    HKU_IF_RETURN(*this == Null<Datetime>(), result);
     int today = dayOfWeek();
     if (today == 0) {
         result = Datetime(date());
@@ -298,9 +262,7 @@ Datetime Datetime::endOfWeek() const {
 
 Datetime Datetime::startOfQuarter() const {
     Datetime result;
-    if (*this == Null<Datetime>())
-        return result;
-
+    HKU_IF_RETURN(*this == Null<Datetime>(), result);
     int m = month();
     int y = year();
     if (m <= 3) {
@@ -318,9 +280,7 @@ Datetime Datetime::startOfQuarter() const {
 
 Datetime Datetime::endOfQuarter() const {
     Datetime result;
-    if (*this == Null<Datetime>())
-        return result;
-
+    HKU_IF_RETURN(*this == Null<Datetime>(), result);
     int m = month();
     int y = year();
     if (m <= 3) {
@@ -337,30 +297,23 @@ Datetime Datetime::endOfQuarter() const {
 }
 
 Datetime Datetime::startOfHalfyear() const {
-    if (*this == Null<Datetime>())
-        return *this;
-
+    HKU_IF_RETURN(*this == Null<Datetime>(), *this);
     return month() <= 6 ? Datetime(year(), 1, 1) : Datetime(year(), 7, 1);
 }
 
 Datetime Datetime::endOfHalfyear() const {
-    if (*this == Null<Datetime>())
-        return *this;
-
+    HKU_IF_RETURN(*this == Null<Datetime>(), *this);
     return month() <= 6 ? Datetime(year(), 6, 30) : Datetime(year(), 12, 31);
 }
 
 Datetime Datetime::nextDay() const {
-    if (*this == Null<Datetime>() || *this == Datetime::max())
-        return *this;
+    HKU_IF_RETURN(*this == Null<Datetime>() || *this == Datetime::max(), *this);
     return Datetime(date() + bd::date_duration(1));
 }
 
 Datetime Datetime::nextWeek() const {
     Datetime result;
-    if (*this == Null<Datetime>())
-        return result;
-
+    HKU_IF_RETURN(*this == Null<Datetime>(), result);
     result = Datetime(endOfWeek().date() + bd::date_duration(1));
     if (result > Datetime::max())
         result = Datetime::max();
@@ -370,9 +323,7 @@ Datetime Datetime::nextWeek() const {
 
 Datetime Datetime::nextMonth() const {
     Datetime result;
-    if (*this == Null<Datetime>())
-        return result;
-
+    HKU_IF_RETURN(*this == Null<Datetime>(), result);
     result = Datetime(endOfMonth().date() + bd::date_duration(1));
     if (result > Datetime::max())
         result = Datetime::max();
@@ -382,9 +333,7 @@ Datetime Datetime::nextMonth() const {
 
 Datetime Datetime::nextQuarter() const {
     Datetime result;
-    if (*this == Null<Datetime>())
-        return result;
-
+    HKU_IF_RETURN(*this == Null<Datetime>(), result);
     result = Datetime(endOfQuarter().date() + bd::date_duration(1));
     if (result > Datetime::max())
         result = Datetime::max();
@@ -394,9 +343,7 @@ Datetime Datetime::nextQuarter() const {
 
 Datetime Datetime::nextHalfyear() const {
     Datetime result;
-    if (*this == Null<Datetime>())
-        return result;
-
+    HKU_IF_RETURN(*this == Null<Datetime>(), result);
     result = Datetime(endOfHalfyear().date() + bd::date_duration(1));
     if (result > Datetime::max())
         result = Datetime::max();
@@ -406,9 +353,7 @@ Datetime Datetime::nextHalfyear() const {
 
 Datetime Datetime::nextYear() const {
     Datetime result;
-    if (*this == Null<Datetime>())
-        return result;
-
+    HKU_IF_RETURN(*this == Null<Datetime>(), result);
     result = Datetime(endOfYear().date() + bd::date_duration(1));
     if (result > Datetime::max())
         result = Datetime::max();
@@ -416,16 +361,13 @@ Datetime Datetime::nextYear() const {
 }
 
 Datetime Datetime::preDay() const {
-    if (*this == Null<Datetime>() || *this == Datetime::min())
-        return *this;
+    HKU_IF_RETURN(*this == Null<Datetime>() || *this == Datetime::min(), *this);
     return Datetime(date() - bd::date_duration(1));
 }
 
 Datetime Datetime::preWeek() const {
     Datetime result;
-    if (*this == Null<Datetime>())
-        return result;
-
+    HKU_IF_RETURN(*this == Null<Datetime>(), result);
     try {
         result = Datetime(date() - bd::date_duration(7)).startOfWeek();
     } catch (...) {
@@ -436,9 +378,7 @@ Datetime Datetime::preWeek() const {
 
 Datetime Datetime::preMonth() const {
     Datetime result;
-    if (*this == Null<Datetime>())
-        return result;
-
+    HKU_IF_RETURN(*this == Null<Datetime>(), result);
     try {
         int m = month();
         result = (m == 1) ? Datetime(year() - 1, 12, 1) : Datetime(year(), m - 1, 1);
@@ -450,9 +390,7 @@ Datetime Datetime::preMonth() const {
 
 Datetime Datetime::preQuarter() const {
     Datetime result;
-    if (*this == Null<Datetime>())
-        return result;
-
+    HKU_IF_RETURN(*this == Null<Datetime>(), result);
     try {
         int m = startOfQuarter().month();
         result = (m == 1) ? Datetime(year() - 1, 10, 1) : Datetime(year(), m - 3, 1);
@@ -465,9 +403,7 @@ Datetime Datetime::preQuarter() const {
 
 Datetime Datetime::preHalfyear() const {
     Datetime result;
-    if (*this == Null<Datetime>())
-        return result;
-
+    HKU_IF_RETURN(*this == Null<Datetime>(), result);
     try {
         int m = startOfHalfyear().month();
         result = (m <= 6) ? Datetime(year() - 1, 7, 1) : Datetime(year(), 1, 1);
@@ -480,9 +416,7 @@ Datetime Datetime::preHalfyear() const {
 
 Datetime Datetime::preYear() const {
     Datetime result;
-    if (*this == Null<Datetime>())
-        return result;
-
+    HKU_IF_RETURN(*this == Null<Datetime>(), result);
     try {
         result = Datetime(year() - 1, 1, 1);
     } catch (...) {
@@ -494,10 +428,7 @@ Datetime Datetime::preYear() const {
 
 Datetime Datetime::endOfDay() const {
     Datetime result;
-    if (*this == Null<Datetime>()) {
-        return result;
-    }
-
+    HKU_IF_RETURN(*this == Null<Datetime>(), result);
     result = date() != bd::date(bd::max_date_time) ? Datetime(year(), month(), day(), 23, 59, 59)
                                                    : Datetime::max();
     return result;

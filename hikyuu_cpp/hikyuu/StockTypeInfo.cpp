@@ -17,12 +17,7 @@ HKU_API std::ostream& operator<<(std::ostream& os, const StockTypeInfo& stockTyp
     }
 
     string split(", ");
-    os << "StockTypeInfo(" << stockTypeInfo.type() << split
-#if defined(_MSC_VER) && (PY_VERSION_HEX >= 0x03000000)
-       << utf8_to_gb(stockTypeInfo.description()) << split
-#else
-       << stockTypeInfo.description() << split
-#endif
+    os << "StockTypeInfo(" << stockTypeInfo.type() << split << stockTypeInfo.description() << split
        << stockTypeInfo.tick() << split << stockTypeInfo.tickValue() << split
        << stockTypeInfo.unit() << split << stockTypeInfo.precision() << split
        << stockTypeInfo.minTradeNumber() << split << stockTypeInfo.maxTradeNumber() << ")";
@@ -44,7 +39,7 @@ string StockTypeInfo::toString() const {
 }
 
 StockTypeInfo::StockTypeInfo()
-: m_type(Null<uint32>()),
+: m_type(Null<uint32_t>()),
   m_tick(0.0),
   m_tickValue(0.0),
   m_unit(1.0),
@@ -52,7 +47,7 @@ StockTypeInfo::StockTypeInfo()
   m_minTradeNumber(0),
   m_maxTradeNumber(0) {}
 
-StockTypeInfo::StockTypeInfo(uint32 type, const string& description, price_t tick,
+StockTypeInfo::StockTypeInfo(uint32_t type, const string& description, price_t tick,
                              price_t tickValue, int precision, double minTradeNumber,
                              double maxTradeNumber)
 : m_type(type),

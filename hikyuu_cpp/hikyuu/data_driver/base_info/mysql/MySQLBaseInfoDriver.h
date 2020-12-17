@@ -9,6 +9,8 @@
 #ifndef MYSQLBASEINFODRIVER_H_
 #define MYSQLBASEINFODRIVER_H_
 
+#include "../../../utilities/ConnectPool.h"
+#include "../../../utilities/db_connect/mysql/MySQLConnect.h"
 #include "../../BaseInfoDriver.h"
 
 #if defined(_MSC_VER)
@@ -21,19 +23,18 @@ namespace hku {
 
 class MySQLBaseInfoDriver : public BaseInfoDriver {
 public:
-    MySQLBaseInfoDriver() : BaseInfoDriver("mysql") {}
+    MySQLBaseInfoDriver();
     virtual ~MySQLBaseInfoDriver();
 
     virtual bool _init() override;
     virtual bool _loadMarketInfo() override;
     virtual bool _loadStockTypeInfo() override;
     virtual bool _loadStock() override;
+    virtual StockWeightList getStockWeightList(const string& market, const string& code,
+                                               Datetime start, Datetime end) override;
 
 private:
-    bool _getStockWeightList(uint64, StockWeightList&);
-
-private:
-    shared_ptr<MYSQL> m_mysql;
+    ConnectPool<MySQLConnect>* m_pool;
 };
 
 } /* namespace hku */

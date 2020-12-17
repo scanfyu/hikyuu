@@ -23,7 +23,7 @@ public:
     enum QueryType {
         INDEX = 0,  ///<按索引方式查询
         DATE = 1,   ///<按日期方式查询
-        INVALID = 3
+        INVALID = 2
     };
 
     ///查询K线类型：日线/周线等
@@ -85,7 +85,7 @@ public:
     /** 默认构造，按索引方式查询全部日线数据，不复权 */
     KQuery()
     : m_start(0),
-      m_end(Null<int64>()),
+      m_end(Null<int64_t>()),
       m_queryType(INDEX),
       m_dataType(DAY),
       m_recoverType(NO_RECOVER){};
@@ -98,7 +98,8 @@ public:
      * @param recoverType 复权类型
      * @param queryType 默认按索引方式查询
      */
-    KQuery(int64 start, int64 end = Null<int64>(), KType dataType = DAY,
+    KQuery(int64_t start,  // cppcheck-suppress [noExplicitConstructor]
+           int64_t end = Null<int64_t>(), KType dataType = DAY,
            RecoverType recoverType = NO_RECOVER, QueryType queryType = INDEX)
     : m_start(start),
       m_end(end),
@@ -115,21 +116,22 @@ public:
      * @param ktype K线类型
      * @param recoverType 复权类型
      */
-    KQuery(Datetime start, Datetime end = Null<Datetime>(), KType ktype = DAY,
+    KQuery(Datetime start,  // cppcheck-suppress [noExplicitConstructor]
+           Datetime end = Null<Datetime>(), KType ktype = DAY,
            RecoverType recoverType = NO_RECOVER);
 
     /**
-     * 按索引方式查询时，返回指定的起始索引，否则返回Null<int64>()
+     * 按索引方式查询时，返回指定的起始索引，否则返回Null<int64_t>()
      */
-    int64 start() const {
-        return m_queryType != INDEX ? Null<int64>() : m_start;
+    int64_t start() const {
+        return m_queryType != INDEX ? Null<int64_t>() : m_start;
     }
 
     /**
-     * 按索引方式查询时，返回指定的结束索引，否则返回Null<int64>()
+     * 按索引方式查询时，返回指定的结束索引，否则返回Null<int64_t>()
      */
-    int64 end() const {
-        return m_queryType != INDEX ? Null<int64>() : m_end;
+    int64_t end() const {
+        return m_queryType != INDEX ? Null<int64_t>() : m_end;
     }
 
     /**
@@ -177,8 +179,8 @@ public:
     static RecoverType getRecoverTypeEnum(const string&);
 
 private:
-    int64 m_start;
-    int64 m_end;
+    int64_t m_start;
+    int64_t m_end;
     QueryType m_queryType;
     KType m_dataType;
     RecoverType m_recoverType;
@@ -193,11 +195,11 @@ private:
  * @see KQuery
  * @ingroup StockManage*
  */
-KQuery HKU_API KQueryByIndex(int64 start = 0, int64 end = Null<int64>(),
+KQuery HKU_API KQueryByIndex(int64_t start = 0, int64_t end = Null<int64_t>(),
                              KQuery::KType dataType = KQuery::DAY,
                              KQuery::RecoverType recoverType = KQuery::NO_RECOVER);
 
-inline KQuery KQueryByIndex(int64 start, int64 end, KQuery::KType dataType,
+inline KQuery KQueryByIndex(int64_t start, int64_t end, KQuery::KType dataType,
                             KQuery::RecoverType recoverType) {
     return KQuery(start, end, dataType, recoverType, KQuery::INDEX);
 }
@@ -236,6 +238,7 @@ bool operator==(const KQuery&, const KQuery&);
 bool operator!=(const KQuery&, const KQuery&);
 
 inline bool operator!=(const KQuery& q1, const KQuery& q2) {
+    // cppcheck-suppress [mismatchingContainerExpression]
     if (q1.start() != q2.start() || q1.end() != q2.end() || q1.queryType() != q2.queryType() ||
         q1.kType() != q2.kType() || q1.recoverType() != q2.recoverType()) {
         return true;
@@ -259,7 +262,7 @@ class Null<KQuery> {
 public:
     Null() {}
     operator KQuery() {
-        return KQuery(Null<int64>(), Null<int64>(),
+        return KQuery(Null<int64_t>(), Null<int64_t>(),
                       "",  // KQuery::INVALID_KTYPE,
                       KQuery::INVALID_RECOVER_TYPE, KQuery::INVALID);
     }

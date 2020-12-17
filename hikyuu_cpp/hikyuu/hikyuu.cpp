@@ -18,7 +18,7 @@ namespace hku {
 
 static Parameter g_hikyuu_context;
 
-void hikyuu_init(const string& config_file_name) {
+void hikyuu_init(const string& config_file_name, bool ignore_preload) {
     IniParser config;
     try {
         config.read(config_file_name);
@@ -63,7 +63,7 @@ void hikyuu_init(const string& config_file_name) {
 
     option = config.getOptionList("preload");
     for (auto iter = option->begin(); iter != option->end(); ++iter) {
-        preloadParam.set<bool>(*iter, config.getBool("preload", *iter));
+        preloadParam.set<bool>(*iter, ignore_preload ? false : config.getBool("preload", *iter));
     }
 
     StockManager& sm = StockManager::instance();
@@ -75,16 +75,21 @@ string getVersion() {
 }
 
 std::string HKU_API getVersionWithBuild() {
-#if defined(__arm__)
-    return fmt::format("{}_{}_arm", HKU_VERSION, HKU_VERSION_BUILD);
-#elif defined(__aarch64__)
-    return fmt::format("{}_{}_aarch64", HKU_VERSION, HKU_VERSION_BUILD);
-#elif defined(__x86_64__) || defined(_WIN64)
-    return fmt::format("{}_{}_x64", HKU_VERSION, HKU_VERSION_BUILD);
-#elif defined(__i386__) || defined(_WIN32)
-    return fmt::format("{}_{}_i386", HKU_VERSION, HKU_VERSION_BUILD);
+#if defined(_DEBUG) || defined(DEBUG)
+    string mode("debug");
 #else
-    return fmt::format("{}_{}_unknow_arch", HKU_VERSION, HKU_VERSION_BUILD);
+    string mode("release");
+#endif
+#if defined(__arm__)
+    return fmt::format("{}_{}_arm_{}", HKU_VERSION, HKU_VERSION_BUILD, mode);
+#elif defined(__aarch64__)
+    return fmt::format("{}_{}_aarch64_{}", HKU_VERSION, HKU_VERSION_BUILD, mode);
+#elif defined(__x86_64__) || defined(_WIN64)
+    return fmt::format("{}_{}_x64_{}", HKU_VERSION, HKU_VERSION_BUILD, mode);
+#elif defined(__i386__) || defined(_WIN32)
+    return fmt::format("{}_{}_i386_{}", HKU_VERSION, HKU_VERSION_BUILD, mode);
+#else
+    return fmt::format("{}_{}_unknow_arch_{}", HKU_VERSION, HKU_VERSION_BUILD, mode);
 #endif
 }
 

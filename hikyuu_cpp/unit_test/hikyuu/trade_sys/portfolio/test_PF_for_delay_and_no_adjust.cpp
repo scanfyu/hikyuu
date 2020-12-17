@@ -32,28 +32,18 @@ TEST_CASE("test_PF_for_delay_and_no_adjust") {
     SYSPtr sys = SYS_Simple();
     sys->setSG(SG_CrossGold(EMA(12), EMA(26)));
     sys->setMM(MM_FixedCount(100));
-    SYSPtr pro_sys = sys->clone(false, false);
+    SYSPtr pro_sys = sys->clone();
 
     TMPtr tm = crtTM(Datetime(199001010000L), 500000);
     SEPtr se = SE_Fixed();
+    se->addStockList({sm["sz000001"], sm["sz000063"],sm["sz000651"]}, sys);
     AFPtr af = AF_EqualWeight();
     PFPtr pf = PF_Simple(tm, se, af);
 
     KQuery query = KQueryByDate(Datetime(201101010000L), Null<Datetime>(), KQuery::DAY);
+    pf->run(query);
 
     /** @arg */
-    sys->setTM(tm->clone());
-    sys->run(sm["sz000001"], query);
-    sys->getTM()->tocsv(sm.tmpdir());
-
-    se->addStock(sm["sz000001"], pro_sys);
-    pf->run(query);
-    tm->name("PF");
-    tm->tocsv(sm.tmpdir());
-
-    TradeRecordList tr1 = sys->getTM()->getTradeList();
-    TradeRecordList tr2 = tm->getTradeList();
-    CHECK_EQ(tr1.size(), tr2.size());
 }
 
 /** @} */

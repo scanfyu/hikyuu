@@ -25,7 +25,7 @@ class HKU_API BaseInfoDriver {
 
 public:
     typedef unordered_map<string, MarketInfo> MarketInfoMap;
-    typedef unordered_map<uint32, StockTypeInfo> StockTypeInfoMap;
+    typedef unordered_map<uint32_t, StockTypeInfo> StockTypeInfoMap;
 
     /**
      * 构造函数
@@ -49,6 +49,16 @@ public:
      * @return
      */
     bool loadBaseInfo();
+
+    /**
+     * 获取指定日期范围内 [start, end) 的权限列表
+     * @param market 市场简称
+     * @param code 证券代码
+     * @param start 起始日期
+     * @param end 结束日期
+     */
+    virtual StockWeightList getStockWeightList(const string& market, const string& code,
+                                               Datetime start, Datetime end);
 
     /**
      * 获取当前财务信息

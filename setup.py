@@ -114,6 +114,10 @@ def build_boost(mode):
         os.system(
             'b2 {} link=shared runtime-link=shared address-model=64 -j 4 --with-python'
             ' --with-serialization'.format(mode))
+        #os.system(
+        #    'b2 {} link=shared runtime-link=shared address-model=64 -j 4 --with-python'
+        #    ' --with-date_time --with-filesystem --with-system --with-test'
+        #    ' --with-serialization'.format(mode))
         os.chdir(current_dir)
     else:
         cmd = 'cd {boost} ; if [ ! -f "b2" ]; then ./bootstrap.sh ; fi; '\
@@ -121,6 +125,10 @@ def build_boost(mode):
               './b2 {mode} link=static address-model=64 cxxflags=-fPIC -j 4 --with-date_time '\
               '--with-filesystem --with-system --with-test; '\
               'cd {current}'.format(boost=current_boost_root, mode=mode, current=current_dir)
+        # cmd = 'cd {boost} ; if [ ! -f "b2" ]; then ./bootstrap.sh ; fi; '\
+        #       './b2 {mode} link=shared address-model=64 -j 4 --with-python --with-serialization '\
+        #       '--with-date_time --with-filesystem --with-system --with-test; '\
+        #       'cd {current}'.format(boost=current_boost_root, mode=mode, current=current_dir)
         os.system(cmd)
 
 
@@ -193,9 +201,11 @@ def start_build(verbose=False, mode='release'):
         clear_with_python_changed(mode)
         print('\ncompile boost ...')
         build_boost(mode)
-        os.system("xmake f -c -y -m {}".format(mode))
+        os.system("xmake f {} -c -y -m {}".format("-v -D" if verbose else "",
+                                                  mode))
     else:
-        os.system("xmake f -y -m {}".format(mode))
+        os.system("xmake f {} -y -m {}".format("-v -D" if verbose else "",
+                                               mode))
 
     os.system("xmake -b {} hikyuu".format("-v -D" if verbose else ""))
     if mode == "release":
@@ -236,7 +246,8 @@ def build(verbose, mode):
               default='release',
               type=click.Choice(['release', 'debug']),
               help='编译模式')
-def test(all, compile, verbose, mode):
+@click.option('-case', '--case', default='', help="执行指定的 TestCase")
+def test(all, compile, verbose, mode, case):
     """ 执行单元测试 """
     current_compile_info = get_current_compile_info()
     current_compile_info['mode'] = mode
@@ -245,12 +256,14 @@ def test(all, compile, verbose, mode):
         start_build(verbose, mode)
     if all:
         os.system("xmake f --test=all --mode={}".format(mode))
-        os.system("xmake -b unit-test")
-        os.system("xmake r unit-test")
+        os.system("xmake -b {} unit-test".format("-v -D" if verbose else ""))
+        os.system("xmake r unit-test {}".format('' if case ==
+                                                '' else '-tc {}'.format(case)))
     else:
         os.system("xmake f --test=small --mode={}".format(mode))
-        os.system("xmake -b small-test")
-        os.system("xmake r small-test")
+        os.system("xmake -b {} small-test".format("-v -D" if verbose else ""))
+        os.system("xmake r small-test {}".format(
+            '' if case == '' else '-tc {}'.format(case)))
 
 
 @click.command()
@@ -277,6 +290,7 @@ def clear(with_boost):
                 print('delete', r + '/' + name)
                 os.remove(os.path.join(r, name))
     print('clear finished!')
+    os.system("xmake clean")
 
 
 @click.command()
@@ -286,7 +300,7 @@ def uninstall():
         site_lib_dir = sys.base_prefix + "/lib/site-packages"
     else:
         usr_dir = os.path.expanduser('~')
-        py_version, _ = get_python_version()
+        py_version = get_python_version()
         site_lib_dir = '{}/.local/lib/python{:>.1f}/site-packages'.format(
             usr_dir, py_version * 0.1)
     for dir in os.listdir(site_lib_dir):
@@ -350,12 +364,23 @@ def wheel():
         plat = "manylinux1_x86_64"
     elif current_plat == 'linux' and current_bits == 32:
         plat = "manylinux1_i386"
+    elif current_plat == 'darwin' and current_bits == 32:
+        plat = "macosx_i686"
+    elif current_plat == 'darwin' and current_bits == 64:
+        plat = "macosx_10_9_x86_64"
     else:
         print("*********尚未实现该平台的支持*******")
         return
-    cmd = 'python sub_setup.py bdist_wheel --python-tag cp{} -p {}'.format(
-        py_version, plat)
-    os.system(cmd)
+    if current_plat == 'win32':
+        cmd = 'python sub_setup.py bdist_wheel --python-tag cp{} -p {}'.format(
+            py_version, plat)
+        print(cmd)
+        os.system(cmd)
+    else:
+        cmd = 'python3 sub_setup.py bdist_wheel --python-tag cp{} -p {}'.format(
+            py_version, plat)
+        print(cmd)
+        os.system(cmd)
 
 
 @click.command()

@@ -24,14 +24,10 @@ HKU_API std::ostream& operator<<(std::ostream& os, const SelectorPtr& st) {
     return os;
 }
 
-SelectorBase::SelectorBase() : m_name("SelectorBase"), m_count(0), m_pre_date(Datetime::min()) {
-    setParam<int>("freq", 1);  //已Bar为单位
-}
+SelectorBase::SelectorBase() : m_name("SelectorBase"), m_count(0), m_pre_date(Datetime::min()) {}
 
 SelectorBase::SelectorBase(const string& name)
-: m_name(name), m_count(0), m_pre_date(Datetime::min()) {
-    setParam<int>("freq", 1);
-}
+: m_name(name), m_count(0), m_pre_date(Datetime::min()) {}
 
 SelectorBase::~SelectorBase() {}
 
@@ -75,34 +71,31 @@ SelectorPtr SelectorBase::clone() {
 
     SystemList::const_iterator iter = m_sys_list.begin();
     for (; iter != m_sys_list.end(); ++iter) {
-        p->m_sys_list.push_back((*iter)->clone(true, false));
+        // TODO
+        p->m_sys_list.push_back((*iter)->clone());
     }
 
     return p;
 }
 
-void SelectorBase::addStock(const Stock& stock, const SystemPtr& protoSys) {
-    if (stock.isNull()) {
-        HKU_WARN("Try add Null stock, will be discard!");
-        return;
-    }
-
-    if (!protoSys) {
-        HKU_WARN("Try add Null protoSys, will be discard!");
-        return;
-    }
-
-    SYSPtr sys = protoSys->clone(true, false);
-    sys->setStock(stock);
+bool SelectorBase::addSystem(const SystemPtr& sys) {
+    HKU_WARN_IF_RETURN(!sys, false, "Try add null sys, will be discard!");
+    HKU_WARN_IF_RETURN(sys->getStock().isNull(), false, "sys has not bind stock!");
     m_sys_list.push_back(sys);
+    return true;
 }
 
-void SelectorBase::addStockList(const StockList& stkList, const SystemPtr& protoSys) {
-    if (!protoSys) {
-        HKU_WARN("Try add Null protoSys, will be discard!");
-        return;
-    }
+bool SelectorBase::addStock(const Stock& stock, const SystemPtr& protoSys) {
+    HKU_WARN_IF_RETURN(stock.isNull(), false, "Try add Null stock, will be discard!");
+    HKU_WARN_IF_RETURN(!protoSys, false, "Try add Null protoSys, will be discard!");
+    SYSPtr sys = protoSys->clone();
+    sys->setStock(stock);
+    m_sys_list.push_back(sys);
+    return true;
+}
 
+bool SelectorBase::addStockList(const StockList& stkList, const SystemPtr& protoSys) {
+    HKU_WARN_IF_RETURN(!protoSys, false, "Try add Null protoSys, will be discard!");
     StockList::const_iterator iter = stkList.begin();
     for (; iter != stkList.end(); ++iter) {
         if (iter->isNull()) {
@@ -110,28 +103,11 @@ void SelectorBase::addStockList(const StockList& stkList, const SystemPtr& proto
             continue;
         }
 
-        SYSPtr sys = protoSys->clone(true, false);
+        SYSPtr sys = protoSys->clone();
         m_sys_list.push_back(sys);
     }
-}
 
-bool SelectorBase::changed(Datetime date) {
-    if (date <= m_pre_date || date == Null<Datetime>())
-        return false;
-
-    int freq = getParam<int>("freq");
-    if (freq <= 0) {
-        freq = 1;
-    }
-
-    m_count++;
-    if (m_count >= freq) {
-        m_count = 0;
-        m_pre_date = date;
-        return true;
-    }
-
-    return false;
+    return true;
 }
 
 } /* namespace hku */

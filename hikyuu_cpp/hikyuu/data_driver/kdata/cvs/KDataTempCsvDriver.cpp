@@ -10,8 +10,8 @@
 #include <boost/lexical_cast.hpp>
 #include "KDataTempCsvDriver.h"
 
-#include "../utilities/util.h"
-#include "../Log.h"
+#include "../../../utilities/util.h"
+#include "../../../Log.h"
 
 namespace hku {
 
@@ -55,33 +55,91 @@ void KDataTempCsvDriver::_get_title_column(const string& line) {
         string token = m_token_buf[i];
         to_upper(token);
 
-        if ("DATE" == token || "DATETIME" == token || HKU_STR("日期") == token) {
+        if ("DATE" == token || "DATETIME" == token || "日期" == token) {
             m_column[DATE] = i;
 
-        } else if ("OPEN" == token || HKU_STR("开盘价") == token) {
+        } else if ("OPEN" == token || "开盘价" == token) {
             m_column[OPEN] = i;
 
-        } else if ("HIGH" == token || HKU_STR("最高价") == token) {
+        } else if ("HIGH" == token || "最高价" == token) {
             m_column[HIGH] = i;
 
-        } else if ("LOW" == token || HKU_STR("最低价") == token) {
+        } else if ("LOW" == token || "最低价" == token) {
             m_column[LOW] = i;
 
-        } else if ("CLOSE" == token || HKU_STR("收盘价") == token) {
+        } else if ("CLOSE" == token || "收盘价" == token) {
             m_column[CLOSE] = i;
 
-        } else if ("AMOUNT" == token || HKU_STR("成交金额") == token) {
+        } else if ("AMOUNT" == token || "成交金额" == token) {
             m_column[AMOUNT] = i;
 
-        } else if ("VOLUME" == token || "COUNT" == token || "VOL" == token ||
-                   HKU_STR("成交量") == token) {
+        } else if ("VOLUME" == token || "COUNT" == token || "VOL" == token || "成交量" == token) {
             m_column[VOLUME] = i;
         }
     }
 }
 
-void KDataTempCsvDriver::loadKData(const string& market, const string& code, KQuery::KType kType,
-                                   size_t start_ix, size_t end_ix, KRecordListPtr out_buffer) {
+size_t KDataTempCsvDriver::getCount(const string& market, const string& code, KQuery::KType kType) {
+    return getKRecordList(market, code, KQuery(0, Null<int64_t>(), kType)).size();
+}
+
+bool KDataTempCsvDriver::getIndexRangeByDate(const string& market, const string& code,
+                                             const KQuery& query, size_t& out_start,
+                                             size_t& out_end) {
+    out_start = 0;
+    out_end = 0;
+
+    Datetime start_date = query.startDatetime();
+    Datetime end_date = query.endDatetime();
+    HKU_IF_RETURN(start_date >= end_date, false);
+
+    auto klist = getKRecordList(market, code, KQuery(0, Null<int64_t>(), query.kType()));
+    size_t total = klist.size();
+    HKU_IF_RETURN(total == 0, false);
+
+    for (size_t i = total - 1; i == 0; --i) {
+        if (klist[i].datetime < end_date) {
+            out_end = i + 1;
+            break;
+        }
+    }
+
+    if (out_end == 0) {
+        return false;
+    }
+
+    for (size_t i = out_end - 1; i == 0; --i) {
+        if (klist[i].datetime <= start_date) {
+            out_start = i;
+            break;
+        }
+    }
+
+    if (out_start >= out_end) {
+        out_start = 0;
+        out_end = 0;
+        return false;
+    }
+
+    return true;
+}
+
+KRecordList KDataTempCsvDriver::getKRecordList(const string& market, const string& code,
+                                               const KQuery& query) {
+    KRecordList result;
+    if (query.queryType() == KQuery::INDEX) {
+        result = _getKRecordListByIndex(market, code, query.start(), query.end(), query.kType());
+    } else {
+        HKU_INFO("Query by date are not supported!");
+    }
+    return result;
+}
+
+KRecordList KDataTempCsvDriver::_getKRecordListByIndex(const string& market, const string& code,
+                                                       int64_t start_ix, int64_t end_ix,
+                                                       KQuery::KType kType) {
+    KRecordList result;
+
     string filename;
     if (kType == KQuery::DAY) {
         filename = m_day_filename;
@@ -89,24 +147,20 @@ void KDataTempCsvDriver::loadKData(const string& market, const string& code, KQu
         filename = m_min_filename;
     } else {
         HKU_INFO("Only support DAY and MIN!");
-        return;
+        return result;
     }
 
     std::ifstream infile(filename.c_str());
-    if (!infile) {
-        HKU_ERROR("Can't open this file: {}", filename);
-        return;
-    }
-
+    HKU_ERROR_IF_RETURN(!infile, result, "Can't open this file: {}", filename);
     string line;
     if (!std::getline(infile, line)) {
         infile.close();
-        return;
+        return result;
     }
 
     _get_title_column(line);
 
-    size_t line_no = 0;
+    int64_t line_no = 0;
     while (std::getline(infile, line)) {
         if (line_no++ < start_ix)
             continue;
@@ -148,7 +202,7 @@ void KDataTempCsvDriver::loadKData(const string& market, const string& code, KQu
             if (token_count >= m_column[AMOUNT])
                 record.transAmount = boost::lexical_cast<price_t>(m_token_buf[m_column[AMOUNT]]);
 
-            out_buffer->push_back(record);
+            result.push_back(record);
 
         } catch (...) {
             HKU_WARN("Invalid data in line {}! at trans {}", line_no, action);
@@ -158,66 +212,8 @@ void KDataTempCsvDriver::loadKData(const string& market, const string& code, KQu
     }
 
     infile.close();
-}
 
-size_t KDataTempCsvDriver::getCount(const string& market, const string& code, KQuery::KType kType) {
-    KRecordListPtr buffer(new KRecordList);
-    loadKData(market, code, kType, 0, Null<size_t>(), buffer);
-    return buffer->size();
-}
-
-KRecord KDataTempCsvDriver::getKRecord(const string& market, const string& code, size_t pos,
-                                       KQuery::KType kType) {
-    KRecordListPtr buffer(new KRecordList);
-    loadKData(market, code, kType, 0, Null<size_t>(), buffer);
-    return pos < buffer->size() ? (*buffer)[pos] : Null<KRecord>();
-}
-
-bool KDataTempCsvDriver::getIndexRangeByDate(const string& market, const string& code,
-                                             const KQuery& query, size_t& out_start,
-                                             size_t& out_end) {
-    out_start = 0;
-    out_end = 0;
-
-    Datetime start_date = query.startDatetime();
-    Datetime end_date = query.endDatetime();
-    if (start_date >= end_date) {
-        return false;
-    }
-
-    KRecordListPtr buffer(new KRecordList);
-    loadKData(market, code, query.kType(), 0, Null<size_t>(), buffer);
-
-    size_t total = buffer->size();
-    if (total == 0) {
-        return false;
-    }
-
-    for (size_t i = total - 1; i == 0; --i) {
-        if ((*buffer)[i].datetime < end_date) {
-            out_end = i + 1;
-            break;
-        }
-    }
-
-    if (out_end == 0) {
-        return false;
-    }
-
-    for (size_t i = out_end - 1; i == 0; --i) {
-        if ((*buffer)[i].datetime <= start_date) {
-            out_start = i;
-            break;
-        }
-    }
-
-    if (out_start >= out_end) {
-        out_start = 0;
-        out_end = 0;
-        return false;
-    }
-
-    return true;
+    return result;
 }
 
 } /* namespace hku */

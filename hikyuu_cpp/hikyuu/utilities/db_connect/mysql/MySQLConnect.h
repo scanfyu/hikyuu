@@ -24,16 +24,28 @@ namespace hku {
 
 class HKU_API MySQLConnect : public DBConnectBase {
 public:
-    MySQLConnect(const Parameter& param);
+    explicit MySQLConnect(const Parameter& param);
     virtual ~MySQLConnect();
+
+    MySQLConnect(const MySQLConnect&) = delete;
+    MySQLConnect& operator=(const MySQLConnect&) = delete;
+
+    virtual bool ping() override;
 
     virtual void exec(const string& sql_string) override;
     virtual SQLStatementPtr getStatement(const string& sql_statement) override;
     virtual bool tableExist(const string& tablename) override;
 
+    virtual void transaction() override;
+    virtual void commit() override;
+    virtual void rollback() override;
+
+private:
+    void close();
+
 private:
     friend class MySQLStatement;
-    shared_ptr<MYSQL> m_mysql;
+    MYSQL* m_mysql;
 };
 
 }  // namespace hku

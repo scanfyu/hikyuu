@@ -1,7 +1,7 @@
 # 已废弃接口
 
 from .extend import *
-from .util.mylog import escapetime
+from .util.mylog import spend_time
 
 
 def deprecated_func(new_func, old_func_name, new_func_name):
@@ -402,6 +402,20 @@ Query.__getattr__ = Query_getattr
 
 @deprecated_attr(
     {
+        'getParam': 'get_param',
+        'setParam': 'set_param',
+        'haveParam': 'have_param',
+        'getSelectedSystemList': 'get_selected_system_list',
+        'addStock': 'add_stock',
+        'addStockList': 'add_stock_list',
+    }
+)
+def SelectorBase_getattr(self, name):
+    return getattr(self, name)
+
+
+@deprecated_attr(
+    {
         'getTO': 'to',
         'setTO': 'to',
         'getParam': 'get_param',
@@ -450,12 +464,12 @@ SlippageBase.__getattr__ = SlippageBase_getattr
         'isNull': 'is_null',
         'isBuffer': 'is_buffer',
         'getKData': 'get_kdata',
-        'getTimeLineList': 'get_timeLine_list',
+        'getTimeLineList': 'get_timeline_list',
         'getTransList': 'get_trans_list',
         'getCount': 'get_count',
         'getMarketValue': 'get_market_value',
         'getKRecord': 'get_krecord',
-        'getKRecordByDate': 'get_krecord_by_datetime',
+        'getKRecordByDate': 'get_krecord',
         'getKRecordList': 'get_krecord_list',
         'getDatetimeList': 'get_datetime_list',
         'getFinanceInfo': 'get_finance_info',

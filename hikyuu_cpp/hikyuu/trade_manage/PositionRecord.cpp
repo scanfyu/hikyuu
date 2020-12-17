@@ -43,11 +43,7 @@ HKU_API std::ostream& operator<<(std::ostream& os, const PositionRecord& record)
     if (!stock.isNull()) {
         market = stock.market();
         code = stock.code();
-#if defined(_MSC_VER) && (PY_VERSION_HEX >= 0x03000000)
-        name = utf8_to_gb(stock.name());
-#else
         name = stock.name();
-#endif
     } else {
         precision = stock.precision();
     }
@@ -100,15 +96,12 @@ string PositionRecord::toString() const {
 }
 
 bool HKU_API operator==(const PositionRecord& d1, const PositionRecord& d2) {
-    if (d1.stock == d2.stock && d1.takeDatetime == d2.takeDatetime &&
-        d1.cleanDatetime == d2.cleanDatetime && fabs(d1.number - d2.number) < 0.00001 &&
-        fabs(d1.stoploss - d2.stoploss) < 0.0001 && fabs(d1.goalPrice - d2.goalPrice) < 0.0001 &&
-        fabs(d1.totalNumber - d2.totalNumber) < 0.00001 &&
-        fabs(d1.buyMoney - d2.buyMoney) < 0.0001 && fabs(d1.totalCost - d2.totalCost) < 0.0001 &&
-        fabs(d1.sellMoney - d2.sellMoney) < 0.0001) {
-        return true;
-    }
-    return false;
+    return d1.stock == d2.stock && d1.takeDatetime == d2.takeDatetime &&
+           d1.cleanDatetime == d2.cleanDatetime && fabs(d1.number - d2.number) < 0.00001 &&
+           fabs(d1.stoploss - d2.stoploss) < 0.0001 && fabs(d1.goalPrice - d2.goalPrice) < 0.0001 &&
+           fabs(d1.totalNumber - d2.totalNumber) < 0.00001 &&
+           fabs(d1.buyMoney - d2.buyMoney) < 0.0001 && fabs(d1.totalCost - d2.totalCost) < 0.0001 &&
+           fabs(d1.sellMoney - d2.sellMoney) < 0.0001;
 }
 
 } /* namespace hku */

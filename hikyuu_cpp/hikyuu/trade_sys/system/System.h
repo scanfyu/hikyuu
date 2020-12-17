@@ -145,14 +145,8 @@ public:
 
     typedef shared_ptr<System> SystemPtr;
 
-    /** 克隆操作，会依次调用所有部件的clone操作
-     * @details TM、EV都是和具体系统无关的策略组件，可以在不同的系统中进行共享。clone将
-     * 生成新的独立实例，此时非共享状态。尤其需要注意TM是否共享的情况！
-     * @param with_tm 是clone还是共享
-     * @param with_ev 是clone还是共享
-     * @note 不设默认值，强迫用户了解其间的区别，避免误用。
-     */
-    SystemPtr clone(bool with_tm, bool with_ev);
+    /** 克隆操作，会依次调用所有部件的clone操作 */
+    SystemPtr clone();
 
     /**
      * 设置交易对象
@@ -164,8 +158,8 @@ public:
     void run(const KQuery& query, bool reset = true);
     void run(const Stock& stock, const KQuery& query, bool reset = true);
 
-    void runMoment(const Datetime& datetime);
-    void runMoment(const KRecord& record);
+    TradeRecord runMoment(const Datetime& datetime);
+    TradeRecord runMoment(const KRecord& record);
 
     //清除已有的交易请求，供Portfolio使用
     void clearDelayRequest();
@@ -202,29 +196,32 @@ public:
     price_t _getRealBuyPrice(const Datetime& datetime, price_t planPrice);
     price_t _getRealSellPrice(const Datetime& datetime, price_t planPrice);
 
-    void _buy(const KRecord& today, Part from);
-    void _buyNow(const KRecord& today, Part from);
-    void _buyDelay(const KRecord& today);
+    TradeRecord _buy(const KRecord& today, Part from);
+    TradeRecord _buyNow(const KRecord& today, Part from);
+    TradeRecord _buyDelay(const KRecord& today);
     void _submitBuyRequest(const KRecord& today, Part from);
 
-    void _sell(const KRecord& today, Part from);
-    void _sellNow(const KRecord& today, Part from);
-    void _sellDelay(const KRecord& today);
+    TradeRecord _sell(const KRecord& today, Part from);
+    TradeRecord _sellNow(const KRecord& today, Part from);
+    TradeRecord _sellDelay(const KRecord& today);
     void _submitSellRequest(const KRecord& today, Part from);
 
-    void _sellShort(const KRecord& today, Part from);
-    void _sellShortNow(const KRecord& today, Part from);
-    void _sellShortDelay(const KRecord& today);
+    // 强制卖出，用于资金分配管理器和资产组合指示系统进行强制卖出操作
+    TradeRecord _sellForce(const KRecord& today, double num, Part from);
+
+    TradeRecord _sellShort(const KRecord& today, Part from);
+    TradeRecord _sellShortNow(const KRecord& today, Part from);
+    TradeRecord _sellShortDelay(const KRecord& today);
     void _submitSellShortRequest(const KRecord& today, Part from);
 
-    void _buyShort(const KRecord& today, Part from);
-    void _buyShortNow(const KRecord& today, Part from);
-    void _buyShortDelay(const KRecord& today);
+    TradeRecord _buyShort(const KRecord& today, Part from);
+    TradeRecord _buyShortNow(const KRecord& today, Part from);
+    TradeRecord _buyShortDelay(const KRecord& today);
     void _submitBuyShortRequest(const KRecord& today, Part from);
 
-    void _processRequest(const KRecord& today);
+    TradeRecord _processRequest(const KRecord& today);
 
-    void _runMoment(const KRecord& record);
+    TradeRecord _runMoment(const KRecord& record);
 
 protected:
     TradeManagerPtr m_tm;
@@ -266,8 +263,7 @@ private:
     friend class boost::serialization::access;
     template <class Archive>
     void save(Archive& ar, const unsigned int version) const {
-        string tmp_name(GBToUTF8(m_name));
-        ar& boost::serialization::make_nvp("m_name", tmp_name);
+        ar& BOOST_SERIALIZATION_NVP(m_name);
         ar& BOOST_SERIALIZATION_NVP(m_params);
 
         ar& BOOST_SERIALIZATION_NVP(m_tm);
@@ -300,9 +296,7 @@ private:
 
     template <class Archive>
     void load(Archive& ar, const unsigned int version) {
-        string tmp_name;
-        ar& boost::serialization::make_nvp("m_name", tmp_name);
-        m_name = UTF8ToGB(tmp_name);
+        ar& BOOST_SERIALIZATION_NVP(m_name);
         ar& BOOST_SERIALIZATION_NVP(m_params);
 
         ar& BOOST_SERIALIZATION_NVP(m_tm);

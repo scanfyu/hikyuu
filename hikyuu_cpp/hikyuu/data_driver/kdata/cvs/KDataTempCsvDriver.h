@@ -9,7 +9,7 @@
 #ifndef DATA_DRIVER_KDATATEMPCSVDRIVER_H_
 #define DATA_DRIVER_KDATATEMPCSVDRIVER_H_
 
-#include "KDataDriver.h"
+#include "../../KDataDriver.h"
 
 namespace hku {
 
@@ -22,17 +22,9 @@ public:
     KDataTempCsvDriver(const string& day_filename, const string& min_filename);
     virtual ~KDataTempCsvDriver();
 
-    /**
-     * 将指定类型的K线数据加载至缓存
-     * @param market 市场简称
-     * @param code   证券代码
-     * @param kType  K线类型
-     * @param start_ix 欲加载的起始位置
-     * @param end_ix 欲加载的结束位置，不包含自身
-     * @param out_buffer [out] 缓存指针
-     */
-    virtual void loadKData(const string& market, const string& code, KQuery::KType kType,
-                           size_t start_ix, size_t end_ix, KRecordListPtr out_buffer) override;
+    virtual bool isIndexFirst() override {
+        return false;
+    }
 
     /**
      * 获取指定类型的K线数据量
@@ -56,20 +48,21 @@ public:
                                      size_t& out_start, size_t& out_end) override;
 
     /**
-     * 获取指定的K线记录
+     * 获取 K 线数据
      * @param market 市场简称
      * @param code   证券代码
-     * @param pos    K线记录索引
-     * @param kType  K线类型
-     * @return
+     * @param query  查询条件
      */
-    virtual KRecord getKRecord(const string& market, const string& code, size_t pos,
-                               KQuery::KType kType) override;
+    virtual KRecordList getKRecordList(const string& market, const string& code,
+                                       const KQuery& query) override;
 
 private:
     void _get_title_column(const string&);
     void _get_token(const string&);
     string _get_filename();
+
+    KRecordList _getKRecordListByIndex(const string& market, const string& code, int64_t start_ix,
+                                       int64_t end_ix, KQuery::KType kType);
 
 private:
     string m_day_filename;

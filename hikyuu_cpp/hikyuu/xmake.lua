@@ -5,7 +5,7 @@ target("hikyuu")
         set_kind("shared")
     end
     
-    add_packages("fmt", "spdlog")
+    add_packages("fmt", "spdlog", "flatbuffers", "nng")
 
     add_includedirs("..")
 
@@ -30,7 +30,6 @@ target("hikyuu")
     if is_plat("windows") then 
         add_defines("SQLITE_API=__declspec(dllimport)")
         add_defines("HKU_API=__declspec(dllexport)")
-        add_defines("PY_VERSION_HEX=0x03000000")
         add_includedirs("../../hikyuu_extern_libs/src/sqlite3")
         add_deps("sqlite3")
         if is_mode("release") then
@@ -45,6 +44,9 @@ target("hikyuu")
         add_includedirs("/usr/include/hdf5")
         add_includedirs("/usr/include/hdf5/serial")
         if is_arch("x86_64")  then
+            if os.exists("/usr/lib64/mysql") then
+                add_linkdirs("/usr/lib64/mysql")
+            end
             add_linkdirs("/usr/lib/x86_64-linux-gnu")
             add_linkdirs("/usr/lib/x86_64-linux-gnu/hdf5/serial")
         end
@@ -57,6 +59,11 @@ target("hikyuu")
         add_linkdirs("/usr/local/opt/hdf5/lib")
         add_includedirs("/usr/local/opt/mysql-client/include")
         add_linkdirs("/usr/local/opt/mysql-client/lib")
+    end
+
+    if is_plat("windows") then 
+        -- nng 静态链接需要的系统库
+        add_syslinks("ws2_32", "advapi32")
     end
 
     if is_plat("linux") or is_plat("macosx") then
@@ -80,7 +87,7 @@ target("hikyuu")
         assert(os.getenv("BOOST_ROOT"), [[Missing environment variable: BOOST_ROOT
 You need to specify where the boost headers is via the BOOST_ROOT variable!]])
 
-        assert(os.getenv("BOOST_ROOT"), [[Missing environment variable: BOOST_LIB
+        assert(os.getenv("BOOST_LIB"), [[Missing environment variable: BOOST_LIB
 You need to specify where the boost library is via the BOOST_LIB variable!]])
     end)
     

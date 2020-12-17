@@ -36,14 +36,34 @@ public:
     string name() const;
     void name(const string& name);
 
-    void addStock(const Stock& stock, const SystemPtr& protoSys);
-    void addStockList(const StockList& stkList, const SystemPtr& protoSys);
+    /**
+     * 加入备选的系统策略，该策略必须已经指定关联的stock
+     * @param sys 备选的系统策略
+     * @return 加入无效的sys或未系统未关联stock返回 false， 否则返回 true
+     */
+    bool addSystem(const SystemPtr& sys);
 
+    /**
+     * 添加备选股票及其交易策略原型
+     * @param stock 备选股票
+     * @param protoSys 交易系统策略原型
+     * @return 如果 protoSys 无效 或 stock 无效，则返回 false， 否则返回 true
+     */
+    bool addStock(const Stock& stock, const SystemPtr& protoSys);
+
+    /**
+     * 加入一组相同交易策略的股票
+     * @note 如果存在无效的stock，则自动忽略，不会返回false
+     * @param stkList 备选股票列表
+     * @param protoSys 交易系统策略原型
+     * @return 如果 protoSys 无效则返回false，否则返回 true
+     */
+    bool addStockList(const StockList& stkList, const SystemPtr& protoSys);
+
+    /** 获取所有系统实例 */
     SystemList getAllSystemList() const {
         return m_sys_list;
     }
-
-    bool changed(Datetime date);
 
     void reset();
 
@@ -74,8 +94,7 @@ private:
     friend class boost::serialization::access;
     template <class Archive>
     void save(Archive& ar, const unsigned int version) const {
-        string name_str(GBToUTF8(m_name));
-        ar& boost::serialization::make_nvp("name", name_str);
+        ar& BOOST_SERIALIZATION_NVP(m_name);
         ar& BOOST_SERIALIZATION_NVP(m_params);
         ar& BOOST_SERIALIZATION_NVP(m_count);
         ar& BOOST_SERIALIZATION_NVP(m_pre_date);
@@ -84,7 +103,7 @@ private:
 
     template <class Archive>
     void load(Archive& ar, const unsigned int version) {
-        ar& boost::serialization::make_nvp("name", m_name);
+        ar& BOOST_SERIALIZATION_NVP(m_name);
         ar& BOOST_SERIALIZATION_NVP(m_params);
         ar& BOOST_SERIALIZATION_NVP(m_count);
         ar& BOOST_SERIALIZATION_NVP(m_pre_date);

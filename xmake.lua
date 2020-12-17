@@ -13,7 +13,11 @@ end
 set_configvar("USE_SPDLOG_LOGGER", 1) -- 是否使用spdlog作为日志输出
 set_configvar("USE_SPDLOG_ASYNC_LOGGER", 0) -- 使用异步的spdlog
 set_configvar("CHECK_ACCESS_BOUND", 1)
-set_configvar("SUPPORT_SERIALIZATION", is_mode("release") and 1 or 0)
+if is_plat("macosx") then 
+    set_configvar("SUPPORT_SERIALIZATION", 0)
+else
+    set_configvar("SUPPORT_SERIALIZATION", is_mode("release") and 1 or 0)
+end
 set_configvar("SUPPORT_TEXT_ARCHIVE", 0)
 set_configvar("SUPPORT_XML_ARCHIVE", 1)
 set_configvar("SUPPORT_BINARY_ARCHIVE", 1)
@@ -31,8 +35,11 @@ set_languages("cxx17", "C99")
 
 add_plugindirs("./xmake_plugins")
 
-add_requires("fmt", {configs = {header_only = true, vs_runtime = "MD"}})
+add_requires("fmt", {system=false, configs = {header_only = true, vs_runtime = "MD"}})
 add_requires("spdlog", {configs = {header_only = true, fmt_external=true, vs_runtime = "MD"}})
+add_requires("flatbuffers", {configs = {vs_runtime="MD"}})
+add_requires("nng", {configs = {vs_runtime="MD"}})
+
 add_defines("SPDLOG_DISABLE_DEFAULT_LOGGER")  -- 禁用 spdlog 默认 logger
 
 set_objectdir("$(buildir)/$(mode)/$(plat)/$(arch)/.objs")
@@ -41,12 +48,13 @@ set_targetdir("$(buildir)/$(mode)/$(plat)/$(arch)/lib")
 add_includedirs("$(env BOOST_ROOT)")
 add_linkdirs("$(env BOOST_LIB)")
 
--- modifed to use boost static library, except boost.python
+-- modifed to use boost static library, except boost.python, serialization
 --add_defines("BOOST_ALL_DYN_LINK")
 add_defines("BOOST_SERIALIZATION_DYN_LINK")
 
 if is_host("linux") then
     if is_arch("x86_64") then
+        add_linkdirs("/usr/lib64")
         add_linkdirs("/usr/lib/x86_64-linux-gnu")
     end
 end

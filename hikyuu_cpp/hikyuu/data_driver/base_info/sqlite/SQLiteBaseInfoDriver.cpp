@@ -26,30 +26,35 @@ SQLiteBaseInfoDriver::~SQLiteBaseInfoDriver() {
 }
 
 bool SQLiteBaseInfoDriver::_init() {
-    string dbname;
-    try {
-        dbname = getParam<string>("db");
-        HKU_TRACE("SQLITE3: {}", dbname);
-    } catch (...) {
-        HKU_ERROR("Can't get Sqlite3 filename!");
-        return false;
-    }
-
+    string dbname = tryGetParam<string>("db", "");
+    HKU_ERROR_IF_RETURN(dbname == "", false, "Can't get Sqlite3 filename!");
+    HKU_TRACE("SQLITE3: {}", dbname);
     m_pool = new ConnectPool<SQLiteConnect>(m_params);
+    HKU_CHECK(m_pool, "Failed malloc ConnectPool!");
     return true;
 }
 
 bool SQLiteBaseInfoDriver::_loadMarketInfo() {
-    if (!m_pool) {
-        HKU_ERROR("Connect pool ptr is null!");
-        return false;
-    }
+    HKU_ERROR_IF_RETURN(!m_pool, false, "Connect pool ptr is null!");
 
-    auto con = m_pool->getConnect();
-
-    vector<MarketInfoTable> infoTables;
     try {
+        auto con = m_pool->getConnect();
+        vector<MarketInfoTable> infoTables;
         con->batchLoad(infoTables);
+
+        StockManager& sm = StockManager::instance();
+        for (auto& info : infoTables) {
+            try {
+                sm.loadMarketInfo(MarketInfo(
+                  info.market(), info.name(), info.description(), info.code(), info.lastDate(),
+                  info.openTime1(), info.closeTime1(), info.openTime2(), info.closeTime2()));
+            } catch (std::exception& e) {
+                HKU_ERROR("Failed load market, {}", e.what());
+            } catch (...) {
+                HKU_ERROR("Unknown error!");
+            }
+        }
+
     } catch (std::exception& e) {
         HKU_FATAL("load Market table failed! {}", e.what());
         return false;
@@ -58,30 +63,12 @@ bool SQLiteBaseInfoDriver::_loadMarketInfo() {
         return false;
     }
 
-    StockManager& sm = StockManager::instance();
-    for (auto& info : infoTables) {
-        Datetime lastDate;
-        try {
-            lastDate = Datetime(info.lastDate() * 10000);
-        } catch (...) {
-            lastDate = Null<Datetime>();
-            HKU_WARN("lastDate of market({}) is invalid! ", info.market());
-        }
-        sm.loadMarketInfo(
-          MarketInfo(info.market(), info.name(), info.description(), info.code(), lastDate));
-    }
-
     return true;
 }
 
 bool SQLiteBaseInfoDriver::_loadStockTypeInfo() {
-    if (!m_pool) {
-        HKU_ERROR("Connect pool ptr is null!");
-        return false;
-    }
-
+    HKU_ERROR_IF_RETURN(!m_pool, false, "Connect pool ptr is null!");
     auto con = m_pool->getConnect();
-
     vector<StockTypeInfoTable> infoTables;
     try {
         con->batchLoad(infoTables);
@@ -104,13 +91,8 @@ bool SQLiteBaseInfoDriver::_loadStockTypeInfo() {
 }
 
 bool SQLiteBaseInfoDriver::_loadStock() {
-    if (!m_pool) {
-        HKU_ERROR("Connect pool ptr is null!");
-        return false;
-    }
-
+    HKU_ERROR_IF_RETURN(!m_pool, false, "Connect pool ptr is null!");
     auto con = m_pool->getConnect();
-
     vector<MarketInfoTable> marketTable;
     try {
         con->batchLoad(marketTable);
@@ -122,7 +104,7 @@ bool SQLiteBaseInfoDriver::_loadStock() {
         return false;
     }
 
-    unordered_map<uint64, string> marketDict;
+    unordered_map<uint64_t, string> marketDict;
     for (auto& m : marketTable) {
         marketDict[m.id()] = m.market();
     }
@@ -143,8 +125,6 @@ bool SQLiteBaseInfoDriver::_loadStock() {
     StockTypeInfo null_stockTypeInfo;
     StockManager& sm = StockManager::instance();
     for (auto& r : table) {
-        // HKU_INFO("stock({},{},{},{},{},{},{},{})",
-        // r.stockid,r.marketid,r.code,HKU_STR(r.name),r.type,r.valid,r.startDate,r.endDate);
         Datetime startDate, endDate;
         if (r.startDate > r.endDate || r.startDate == 0 || r.endDate == 0) {
             //日期非法，置为Null<Datetime>
@@ -158,18 +138,19 @@ bool SQLiteBaseInfoDriver::_loadStock() {
 
         stockTypeInfo = sm.getStockTypeInfo(r.type);
         if (stockTypeInfo != null_stockTypeInfo) {
-            stock = Stock(marketDict[r.marketid], r.code, HKU_STR(r.name), r.type, r.valid,
-                          startDate, endDate, stockTypeInfo.tick(), stockTypeInfo.tickValue(),
-                          stockTypeInfo.precision(), stockTypeInfo.minTradeNumber(),
-                          stockTypeInfo.maxTradeNumber());
+            stock =
+              Stock(marketDict[r.marketid], r.code, r.name, r.type, r.valid, startDate, endDate,
+                    stockTypeInfo.tick(), stockTypeInfo.tickValue(), stockTypeInfo.precision(),
+                    stockTypeInfo.minTradeNumber(), stockTypeInfo.maxTradeNumber());
 
         } else {
-            stock = Stock(marketDict[r.marketid], r.code, HKU_STR(r.name), r.type, r.valid,
-                          startDate, endDate);
+            stock =
+              Stock(marketDict[r.marketid], r.code, r.name, r.type, r.valid, startDate, endDate);
         }
 
         if (sm.loadStock(stock)) {
-            StockWeightList weightList = _getStockWeightList(r.stockid);
+            StockWeightList weightList =
+              getStockWeightList(marketDict[r.marketid], r.code, Datetime::min(), Null<Datetime>());
             stock.setWeightList(weightList);
         }
     }
@@ -177,40 +158,44 @@ bool SQLiteBaseInfoDriver::_loadStock() {
     return true;
 }
 
-StockWeightList SQLiteBaseInfoDriver::_getStockWeightList(uint64 stockid) {
+StockWeightList SQLiteBaseInfoDriver::getStockWeightList(const string& market, const string& code,
+                                                         Datetime start, Datetime end) {
+    HKU_ASSERT(m_pool);
     StockWeightList result;
-    if (!m_pool) {
-        HKU_ERROR("Connect pool ptr is null!");
-        return result;
-    }
 
-    auto con = m_pool->getConnect();
-    HKU_ASSERT(con);
-
-    vector<StockWeightTable> table;
     try {
-        con->batchLoad(table, format("stockid={}", stockid));
+        auto con = m_pool->getConnect();
+        HKU_CHECK(con, "Failed fetch connect!");
+
+        vector<StockWeightTable> table;
+        Datetime new_end = end.isNull() ? Datetime::max() : end;
+        con->batchLoad(
+          table,
+          format(
+            "stockid=(select stockid from stock where marketid=(select marketid from "
+            "market where market='{}') and code='{}') and date>={} and date<{} order by date asc",
+            market, code, start.year() * 10000 + start.month() * 100 + start.day(),
+            new_end.year() * 10000 + new_end.month() * 100 + new_end.day()));
+
+        for (auto& w : table) {
+            try {
+                result.push_back(StockWeight(Datetime(w.date * 10000), w.countAsGift * 0.0001,
+                                             w.countForSell * 0.0001, w.priceForSell * 0.001,
+                                             w.bonus * 0.001, w.countOfIncreasement * 0.0001,
+                                             w.totalCount, w.freeCount));
+            } catch (std::out_of_range& e) {
+                HKU_WARN("Date of id({}) is invalid! {}", w.id(), e.what());
+            } catch (std::exception& e) {
+                HKU_WARN("Error StockWeight Record id({}) {}", w.id(), e.what());
+            } catch (...) {
+                HKU_WARN("Error StockWeight Record id({})! Unknow reason!", w.id());
+            }
+        }
+
     } catch (std::exception& e) {
         HKU_FATAL("load StockWeight table failed! {}", e.what());
-        return result;
     } catch (...) {
         HKU_FATAL("load StockWeight table failed!");
-        return result;
-    }
-
-    for (auto& w : table) {
-        try {
-            result.push_back(StockWeight(Datetime(w.date * 10000), w.countAsGift * 0.0001,
-                                         w.countForSell * 0.0001, w.priceForSell * 0.001,
-                                         w.bonus * 0.001, w.countOfIncreasement * 0.0001,
-                                         w.totalCount, w.freeCount));
-        } catch (std::out_of_range& e) {
-            HKU_WARN("Date of id({}) is invalid! {}", w.id(), e.what());
-        } catch (std::exception& e) {
-            HKU_WARN("Error StockWeight Record id({}) {}", w.id(), e.what());
-        } catch (...) {
-            HKU_WARN("Error StockWeight Record id({})! Unknow reason!", w.id());
-        }
     }
 
     return result;
@@ -218,9 +203,7 @@ StockWeightList SQLiteBaseInfoDriver::_getStockWeightList(uint64 stockid) {
 
 Parameter SQLiteBaseInfoDriver ::getFinanceInfo(const string& market, const string& code) {
     Parameter result;
-    if (!m_pool) {
-        return result;
-    }
+    HKU_IF_RETURN(!m_pool, result);
 
     std::stringstream buf;
     buf << "select f.updated_date, f.ipo_date, f.province,"

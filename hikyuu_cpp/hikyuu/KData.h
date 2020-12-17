@@ -37,16 +37,16 @@ public:
     KRecord getKRecord(size_t pos) const;
 
     /** 按日期查询KRecord */
-    KRecord getKRecordByDate(const Datetime& datetime) const;
+    KRecord getKRecord(Datetime datetime) const;
 
     /** 同getKRecord @see getKRecord */
     KRecord operator[](size_t pos) const {
         return getKRecord(pos);
     }
 
-    /** 同getKRecordByDate @see getKRecordByDate */
-    KRecord operator[](const Datetime& datetime) const {
-        return getKRecordByDate(datetime);
+    /** 同getKRecord @see getKRecord */
+    KRecord operator[](Datetime datetime) const {
+        return getKRecord(datetime);
     }
 
     /** 按日期查询对应的索引位置  */
@@ -138,7 +138,7 @@ KData HKU_API getKData(const string& market_code, const Datetime& start = Dateti
  * @param recoverType 复权类型
  * @ingroup StockManage
  */
-KData HKU_API getKData(const string& market_code, int64 start = 0, int64 end = Null<int64>(),
+KData HKU_API getKData(const string& market_code, int64_t start = 0, int64_t end = Null<int64_t>(),
                        KQuery::KType ktype = KQuery::DAY,
                        KQuery::RecoverType recoverType = KQuery::NO_RECOVER);
 
@@ -152,17 +152,19 @@ inline KData& KData::operator=(const KData& x) {
 }
 
 inline DatetimeList KData::getDatetimeList() const {
+    DatetimeList result;
     if (empty()) {
-        return DatetimeList();
+        return result;
     }
-    return getStock().getDatetimeList(startPos(), lastPos() + 1, getQuery().kType());
+    result = getStock().getDatetimeList(KQuery(startPos(), lastPos() + 1, getQuery().kType()));
+    return result;
 }
 
 inline KRecord KData::getKRecord(size_t pos) const {
     return m_imp->getKRecord(pos);  //如果为空，将抛出异常
 }
 
-inline KRecord KData::getKRecordByDate(const Datetime& datetime) const {
+inline KRecord KData::getKRecord(Datetime datetime) const {
     size_t pos = getPos(datetime);
     return pos != Null<size_t>() ? getKRecord(pos) : Null<KRecord>();
 }

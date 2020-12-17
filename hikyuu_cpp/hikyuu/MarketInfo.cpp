@@ -17,15 +17,8 @@ HKU_API std::ostream& operator<<(std::ostream& os, const MarketInfo& market) {
     }
 
     string split(", ");
-#if defined(_MSC_VER) && (PY_VERSION_HEX >= 0x03000000)
-    os << "MarketInfo(" << market.market() << split << utf8_to_gb(market.name()) << split
-       << utf8_to_gb(market.description()) << split << market.code() << split << market.lastDate()
-       << ")";
-
-#else
     os << "MarketInfo(" << market.market() << split << market.name() << split
        << market.description() << split << market.code() << split << market.lastDate() << ")";
-#endif
     return os;
 }
 
@@ -38,14 +31,24 @@ string MarketInfo::toString() const {
 
     string split(", ");
     os << "MarketInfo(" << m_market << split << m_name << split << m_description << split << m_code
-       << split << m_lastDate << ")";
+       << split << m_lastDate << split << m_openTime1.minutes() << split << m_closeTime1.minutes()
+       << split << m_openTime2.minutes() << split << m_closeTime2.minutes() << ")";
     return os.str();
 }
 
 MarketInfo::MarketInfo() {}
 
 MarketInfo::MarketInfo(const string& market, const string& name, const string& description,
-                       const string& code, const Datetime& lastDate)
-: m_market(market), m_name(name), m_description(description), m_code(code), m_lastDate(lastDate) {}
+                       const string& code, const Datetime& lastDate, TimeDelta openTime1,
+                       TimeDelta closeTime1, TimeDelta openTime2, TimeDelta closeTime2)
+: m_market(market),
+  m_name(name),
+  m_description(description),
+  m_code(code),
+  m_lastDate(lastDate),
+  m_openTime1(openTime1),
+  m_closeTime1(closeTime1),
+  m_openTime2(openTime2),
+  m_closeTime2(closeTime2) {}
 
 }  // namespace hku

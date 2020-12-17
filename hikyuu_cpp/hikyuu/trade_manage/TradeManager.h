@@ -461,12 +461,24 @@ public:
     PriceList getFundsCurve(const DatetimeList& dates, KQuery::KType ktype = KQuery::DAY);
 
     /**
+     * 获取从账户建立日期到系统当前日期的资产净值曲线（按自然日），含借入的资产
+     * @return 资产净值列表
+     */
+    PriceList getFundsCurve();
+
+    /**
      * 获取收益曲线，即扣除历次存入资金后的资产净值曲线
      * @param dates 日期列表，根据该日期列表获取其对应的收益曲线，应为递增顺序
      * @param ktype K线类型，必须与日期列表匹配，默认为KQuery::DAY
      * @return 收益曲线
      */
     PriceList getProfitCurve(const DatetimeList& dates, KQuery::KType ktype = KQuery::DAY);
+
+    /**
+     * 获取获取从账户建立日期到系统当前日期的收益曲线，即扣除历次存入资金后的资产净值曲线
+     * @return 收益曲线
+     */
+    PriceList getProfitCurve();
 
     /**
      * 直接加入交易记录
@@ -523,12 +535,12 @@ private:
 
     list<LoanRecord> m_loan_list;  //当前融资情况
 
-    typedef map<uint64, BorrowRecord> borrow_stock_map_type;
+    typedef map<uint64_t, BorrowRecord> borrow_stock_map_type;
     borrow_stock_map_type m_borrow_stock;  //当前借入的股票及其数量
 
     TradeRecordList m_trade_list;  //交易记录
 
-    typedef map<uint64, PositionRecord> position_map_type;
+    typedef map<uint64_t, PositionRecord> position_map_type;
     position_map_type m_position;  //当前持仓交易对象的持仓记录 ["sh000001"-> ]
     PositionRecordList m_position_history;        //持仓历史记录
     position_map_type m_short_position;           //空头仓位记录
@@ -547,8 +559,7 @@ private:
     friend class boost::serialization::access;
     template <class Archive>
     void save(Archive& ar, const unsigned int version) const {
-        string tmp_name(GBToUTF8(m_name));
-        ar& boost::serialization::make_nvp("m_name", tmp_name);
+        ar& BOOST_SERIALIZATION_NVP(m_name);
         ar& BOOST_SERIALIZATION_NVP(m_params);
         ar& BOOST_SERIALIZATION_NVP(m_init_datetime);
         ar& BOOST_SERIALIZATION_NVP(m_init_cash);
@@ -575,9 +586,7 @@ private:
 
     template <class Archive>
     void load(Archive& ar, const unsigned int version) {
-        string tmp_name;
-        ar& boost::serialization::make_nvp("m_name", tmp_name);
-        m_name = UTF8ToGB(tmp_name);
+        ar& BOOST_SERIALIZATION_NVP(m_name);
         ar& BOOST_SERIALIZATION_NVP(m_params);
         ar& BOOST_SERIALIZATION_NVP(m_init_datetime);
         ar& BOOST_SERIALIZATION_NVP(m_init_cash);

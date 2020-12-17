@@ -32,10 +32,10 @@ public:
      * 构造函数
      * @param param 连接参数
      * @param maxConnect 允许的最大连接数，为 0 表示不限制
-     * @param maxIdleConnect 运行的最大空闲连接数，为 0 表示不限制
+     * @param maxIdleConnect 运行的最大空闲连接数，等于 0 时表示立刻释放
      */
-    explicit ConnectPool(const Parameter &param, size_t maxConnect = 0, size_t maxIdleConnect = 0)
-    : m_maxConnectSize(0),
+    explicit ConnectPool(const Parameter &param, size_t maxConnect = 0, size_t maxIdleConnect = 100)
+    : m_maxConnectSize(maxConnect),
       m_maxIdelSize(maxIdleConnect),
       m_count(0),
       m_param(param),
@@ -60,10 +60,13 @@ public:
     /** 获取可用连接，如超出允许的最大连接数将返回空指针 */
     ConnectPtr getConnect() noexcept {
         std::lock_guard<std::mutex> lock(m_mutex);
-        if (m_maxConnectSize > 0 && m_count > m_maxConnectSize) {
-            return ConnectPtr();
-        }
         if (m_connectList.empty()) {
+            if (m_maxConnectSize > 0 && m_count >= m_maxConnectSize) {
+                HKU_WARN(
+                  "There are no idle connections. The current maximum number of connections: {}",
+                  m_maxConnectSize);
+                return ConnectPtr();
+            }
             m_count++;
             return ConnectPtr(new ConnectType(m_param), m_closer);
         }
@@ -82,11 +85,10 @@ private:
     void returnDriver(ConnectType *p) {
         std::lock_guard<std::mutex> lock(m_mutex);
         if (p) {
-            if (0 == m_maxIdelSize || m_connectList.size() < m_maxIdelSize) {
+            if (m_connectList.size() < m_maxIdelSize) {
                 m_connectList.push(p);
             } else {
                 delete p;
-                p = nullptr;
                 m_count--;
             }
         } else {

@@ -9,6 +9,7 @@
 #ifndef STOCK_H_
 #define STOCK_H_
 
+#include <shared_mutex>
 #include "StockWeight.h"
 #include "KQuery.h"
 #include "TimeLineRecord.h"
@@ -34,7 +35,7 @@ private:
     static const string default_code;
     static const string default_market_code;
     static const string default_name;
-    static const uint32 default_type;
+    static const uint32_t default_type;
     static const bool default_valid;
     static const Datetime default_startDate;
     static const Datetime default_lastDate;
@@ -51,18 +52,18 @@ public:
     Stock(const Stock&);
     Stock(const string& market, const string& code, const string& name);
 
-    Stock(const string& market, const string& code, const string& name, uint32 type, bool valid,
+    Stock(const string& market, const string& code, const string& name, uint32_t type, bool valid,
           const Datetime& startDate, const Datetime& lastDate);
-    Stock(const string& market, const string& code, const string& name, uint32 type, bool valid,
-          const Datetime& startDate, const Datetime& lastDate, price_t tick, price_t tickValue, int precision,
-          size_t minTradeNumber, size_t maxTradeNumber);
+    Stock(const string& market, const string& code, const string& name, uint32_t type, bool valid,
+          const Datetime& startDate, const Datetime& lastDate, price_t tick, price_t tickValue,
+          int precision, size_t minTradeNumber, size_t maxTradeNumber);
     virtual ~Stock();
     Stock& operator=(const Stock&);
     bool operator==(const Stock&) const;
     bool operator!=(const Stock&) const;
 
     /** 获取内部id，一般用于作为map的键值使用，该id实质为m_data的内存地址 */
-    uint64 id() const;
+    uint64_t id() const;
 
     /** 获取所属市场简称，市场简称是市场的唯一标识 */
     const string& market() const;
@@ -77,7 +78,7 @@ public:
     const string& name() const;
 
     /** 获取证券类型 */
-    uint32 type() const;
+    uint32_t type() const;
 
     /** 该证券当前是否有效 */
     bool valid() const;
@@ -109,16 +110,14 @@ public:
     /** 获取最大交易量 */
     size_t maxTradeNumber() const;
 
-    /** 获取所有权息信息 */
-    StockWeightList getWeight() const;
-
     /**
      * 获取指定时间段[start,end)内的权息信息
      * @param start 起始日期
      * @param end 结束日期
      * @return 满足要求的权息信息列表指针
      */
-    StockWeightList getWeight(const Datetime& start, const Datetime& end = Null<Datetime>()) const;
+    StockWeightList getWeight(const Datetime& start = Datetime::min(),
+                              const Datetime& end = Null<Datetime>()) const;
 
     /** 获取不同类型K线数据量 */
     size_t getCount(KQuery::KType dataType = KQuery::DAY) const;
@@ -139,16 +138,17 @@ public:
     KRecord getKRecord(size_t pos, KQuery::KType dataType = KQuery::DAY) const;
 
     /** 根据数据类型（日线/周线等），获取指定日期的KRecord */
-    KRecord getKRecordByDate(const Datetime&, KQuery::KType ktype = KQuery::DAY) const;
+    KRecord getKRecord(const Datetime&, KQuery::KType ktype = KQuery::DAY) const;
 
     /** 获取K线数据 */
     KData getKData(const KQuery&) const;
 
-    /** 获取K线记录，一般不直接使用，用getKData替代 */
-    KRecordList getKRecordList(size_t start, size_t end, KQuery::KType) const;
-
-    /** 获取日期列表 */
-    DatetimeList getDatetimeList(size_t start, size_t end, KQuery::KType) const;
+    /**
+     * 根据查询条件获取 KRecordList，不建议在客户端直接使用
+     * @note 该方法不支持复权
+     * @param query 查询条件
+     */
+    KRecordList getKRecordList(const KQuery& query) const;
 
     /** 获取日期列表 */
     DatetimeList getDatetimeList(const KQuery& query) const;
@@ -170,7 +170,7 @@ public:
      */
     PriceList getHistoryFinanceInfo(const Datetime& date) const;
 
-    /** 设置权息信息 */
+    /** 设置权息信息, 仅供初始化时调用 */
     void setWeightList(const StockWeightList&);
 
     /** 设置K线数据获取驱动 */
@@ -195,13 +195,19 @@ public:
     bool isNull() const;
 
     /** （临时函数）只用于更新缓存中的日线数据 **/
-    void realtimeUpdate(const KRecord&);
+    void realtimeUpdate(const KRecord&, KQuery::KType ktype = KQuery::DAY);
 
     /** 仅用于python的__str__ */
     string toString() const;
 
 private:
     bool _getIndexRangeByIndex(const KQuery&, size_t& out_start, size_t& out_end) const;
+
+    // 以下函数属于基础操作添加了读锁
+    size_t _getCountFromBuffer(KQuery::KType ktype) const;
+    KRecord _getKRecordFromBuffer(size_t pos, KQuery::KType ktype) const;
+    KRecordList _getKRecordListFromBuffer(size_t start_ix, size_t end_ix,
+                                          KQuery::KType ktype) const;
     bool _getIndexRangeByDateFromBuffer(const KQuery&, size_t&, size_t&) const;
 
 private:
@@ -215,12 +221,13 @@ struct HKU_API Stock::Data {
     string m_code;         //证券代码
     string m_market_code;  //市场简称证券代码
     string m_name;         //证券名称
-    uint32 m_type;         //证券类型
+    uint32_t m_type;       //证券类型
     bool m_valid;          //当前证券是否有效
     Datetime m_startDate;  //证券起始日期
     Datetime m_lastDate;   //证券最后日期
 
-    StockWeightList m_weightList;  //权息信息列表
+    StockWeightList m_weightList;     //权息信息列表
+    Datetime m_lastUpdateWeightDate;  //上次更新权息列表缓存的时刻
 
     price_t m_tick;
     price_t m_tickValue;
@@ -229,13 +236,13 @@ struct HKU_API Stock::Data {
     size_t m_minTradeNumber;
     size_t m_maxTradeNumber;
 
-    // KRecordListPtr pKData[KQuery::INVALID_KTYPE];
-    map<string, KRecordListPtr> pKData;
+    unordered_map<string, KRecordList*> pKData;
+    unordered_map<string, std::shared_mutex*> pMutex;
 
     Data();
-    Data(const string& market, const string& code, const string& name, uint32 type, bool valid,
-         const Datetime& startDate, const Datetime& lastDate, price_t tick, price_t tickValue, int precision,
-         size_t minTradeNumber, size_t maxTradeNumber);
+    Data(const string& market, const string& code, const string& name, uint32_t type, bool valid,
+         const Datetime& startDate, const Datetime& lastDate, price_t tick, price_t tickValue,
+         int precision, size_t minTradeNumber, size_t maxTradeNumber);
 
     virtual ~Data();
 };
@@ -264,12 +271,8 @@ inline bool operator<(const Stock& s1, const Stock& s2) {
     return s1.id() < s2.id();
 }
 
-inline uint64 Stock::id() const {
-    return isNull() ? 0 : (int64)m_data.get();
-}
-
-inline StockWeightList Stock::getWeight() const {
-    return m_data ? m_data->m_weightList : StockWeightList();
+inline uint64_t Stock::id() const {
+    return isNull() ? 0 : (int64_t)m_data.get();
 }
 
 inline bool Stock::operator==(const Stock& stock) const {
